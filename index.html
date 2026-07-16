@@ -52,15 +52,20 @@
       <span class="class-chip-code" id="classChipCode">7A3K</span>
     </button>
 
-    <!-- 우측 상단 플로팅 버튼 2개 -->
+    <!-- 우측 상단 플로팅 버튼 (역할에 따라 표시가 달라짐) -->
     <div class="fab-group">
-      <!-- 응원: 학부모·교사 누구나 (비밀번호 없음) -->
-      <button id="cheerBtn" class="fab" aria-label="전체 응원 남기기">
+      <!-- 홈: 입장 화면으로 돌아가기 (모두) -->
+      <button id="homeBtn" class="fab" aria-label="처음 화면으로">
+        <span class="fab-icon">🏠</span>
+        <span class="fab-label">홈</span>
+      </button>
+      <!-- 응원: 학부모·교사만 (학생은 숨김) -->
+      <button id="cheerBtn" class="fab" aria-label="전체 응원 남기기" hidden>
         <span class="fab-icon">💬</span>
         <span class="fab-label">응원</span>
       </button>
-      <!-- 과제 수정: 교사 전용 (비밀번호 필요) -->
-      <button id="taskBtn" class="fab fab-lock" aria-label="과제 수정 (교사용)">
+      <!-- 과제 수정: 교사만 (비밀번호 필요) -->
+      <button id="taskBtn" class="fab fab-lock" aria-label="과제 수정 (교사용)" hidden>
         <span class="fab-icon">📚</span>
         <span class="fab-label">과제 🔒</span>
       </button>
@@ -248,17 +253,35 @@
       <div class="gate-emoji">🐉</div>
       <h2 class="gate-title">스터디 드래곤</h2>
 
-      <!-- 학생: 반 코드 입력 -->
-      <section id="gateJoin">
-        <p class="gate-desc">선생님께 받은 <b>반 코드</b>를 입력해 주세요.</p>
-        <input type="text" id="gateInput" class="gate-input" maxlength="4"
-               placeholder="예: 7A3K" autocomplete="off" autocapitalize="characters" />
-        <div class="gate-error" id="gateError" hidden></div>
-        <button id="gateJoinBtn" class="btn-primary gate-btn">반 입장하기 🚪</button>
-        <button id="gateToCreate" class="gate-link">선생님이신가요? 새 반 만들기</button>
+      <!-- 역할 선택 (첫 화면) -->
+      <section id="gateRole">
+        <p class="gate-desc">누구로 입장할까요?</p>
+        <button id="roleStudent" class="role-btn"><span class="role-emoji">🧒</span><span>학생</span></button>
+        <button id="roleParent" class="role-btn"><span class="role-emoji">👪</span><span>학부모</span></button>
+        <button id="roleTeacher" class="role-btn"><span class="role-emoji">🧑‍🏫</span><span>교사</span></button>
       </section>
 
-      <!-- 교사: 새 반 만들기 (비밀번호 필요) -->
+      <!-- 학생·학부모: 반 코드 입력 -->
+      <section id="gateJoin" hidden>
+        <p class="gate-desc" id="gateJoinDesc">선생님께 받은 <b>반 코드</b>를 입력해 주세요.</p>
+        <input type="text" id="gateInput" class="gate-input" maxlength="4"
+               placeholder="반 코드 (예: 7A3K)" autocomplete="off" autocapitalize="characters" />
+        <input type="text" id="gateNick" class="gate-input" maxlength="12"
+               placeholder="사용할 별명 (예: 용감한드래곤)" autocomplete="off" />
+        <div class="gate-error" id="gateError" hidden></div>
+        <button id="gateJoinBtn" class="btn-primary gate-btn">반 입장하기 🚪</button>
+        <button id="gateJoinBack" class="gate-link">← 뒤로</button>
+      </section>
+
+      <!-- 교사: 내 반 목록 (여러 반 관리 + 통계 보기) -->
+      <section id="gateTeacher" hidden>
+        <p class="gate-desc">만든 반을 눌러 <b>통계</b>를 보거나<br />학생처럼 <b>입장</b>할 수 있어요.</p>
+        <div id="teacherList" class="teacher-list"></div>
+        <button id="gateNewClass" class="btn-primary gate-btn">＋ 새 반 만들기</button>
+        <button id="gateTeacherBack" class="gate-link">← 처음으로</button>
+      </section>
+
+      <!-- 교사: 새 반 만들기 -->
       <section id="gateCreate" hidden>
         <p class="gate-desc">새 반을 만들면 <b>반 코드</b>가 나와요.<br />학생들에게 그 코드를 알려주세요.</p>
         <input type="text" id="gateClassName" class="gate-input" maxlength="20"
@@ -266,15 +289,25 @@
         <input type="password" id="gatePw" class="gate-input" placeholder="선생님 비밀번호" autocomplete="off" />
         <div class="gate-error" id="gateCreateError" hidden></div>
         <button id="gateCreateBtn" class="btn-primary gate-btn">반 만들기 ✨</button>
-        <button id="gateToJoin" class="gate-link">← 반 코드로 입장하기</button>
+        <button id="gateCreateBack" class="gate-link">← 돌아가기</button>
       </section>
 
       <!-- 반 생성 완료: 코드 안내 -->
       <section id="gateDone" hidden>
         <p class="gate-desc">반이 만들어졌어요! 🎉<br />이 코드를 학생들에게 알려주세요.</p>
         <div class="gate-code" id="gateNewCode">7A3K</div>
-        <button id="gateStartBtn" class="btn-primary gate-btn">시작하기 🚀</button>
+        <button id="gateDoneBtn" class="btn-primary gate-btn">내 반 목록으로 📋</button>
       </section>
+    </div>
+  </div>
+
+  <!-- ===== 교사용 반 통계 모달 (게이트에서 반 클릭 시) ===== -->
+  <div id="teacherStatsModal" class="modal-backdrop" hidden>
+    <div class="dialog" role="dialog" aria-modal="true">
+      <h2 class="dialog-title">📊 <span id="tsName">우리 반</span></h2>
+      <p class="dialog-desc">반 코드 <b id="tsCode">7A3K</b> · 오늘 현황</p>
+      <div id="tsBody" class="class-body"></div>
+      <button id="tsClose" class="btn-close">닫기</button>
     </div>
   </div>
 

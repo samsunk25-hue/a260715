@@ -154,6 +154,91 @@ body {
   margin-bottom: 18px;
 }
 
+/* ---------- 역할 선택 버튼 ---------- */
+.role-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.1s;
+}
+.role-btn:hover { border-color: #F9A8D4; }
+.role-btn:active { transform: scale(0.97); }
+.role-emoji { font-size: 26px; }
+
+/* ---------- 학부모 모드: 응원에 집중 ---------- */
+/* 캘린더·캐릭터 카드를 숨기고 응원 버튼만 남깁니다 */
+body.parent-mode .calendar-wrap,
+body.parent-mode .char-card { display: none; }
+body.parent-mode #app::after {
+  content: "💬 우측 위 [응원] 버튼으로\A 오늘의 응원을 남겨주세요";
+  white-space: pre-line;
+  display: block;
+  text-align: center;
+  margin-top: 60px;
+  padding: 30px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+/* ---------- 교사 반 목록 ---------- */
+.teacher-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.teacher-empty {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  padding: 20px;
+}
+.teacher-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F8FAFC;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.teacher-info { flex: 1; min-width: 0; text-align: left; }
+.teacher-name {
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.teacher-code {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #EC4899;
+}
+.teacher-act {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 9px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  transition: transform 0.1s;
+}
+.teacher-act:active { transform: scale(0.92); }
+
 /* ---------- 우측 상단 플로팅 버튼 2개 (응원 / 과제) ---------- */
 .fab-group {
   position: fixed;

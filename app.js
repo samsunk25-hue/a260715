@@ -56,7 +56,10 @@ const DRAGONS = [
 
 const STORE_KEY = "studyDragon";
 const DEVICE_KEY = "studyDragonDevice";
-const CLASS_KEY = "studyDragonClass";     // { code, name }
+const CLASS_KEY = "studyDragonClass";        // 입장한 반 { code, name }
+const TEACHER_KEY = "studyDragonTeacher";    // 교사가 만든 반 목록 [{ code, name }]
+const ROLE_KEY = "studyDragonRole";          // "student" | "parent" | "teacher"
+const NICK_KEY = "studyDragonNick";          // 학생 별명 (이 기기에만 저장, 서버에 안 올림)
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 
 // 반 코드에 헷갈리는 글자(0/O, 1/I/L)는 빼서 오탈자를 줄입니다
@@ -108,15 +111,47 @@ function deviceId() {
    =================================================================== */
 
 let myClass = null;   // { code, name } 또는 null
+let myRole = null;    // "student" | "parent" | "teacher"
+let myNick = "";      // 학생 별명 (기기에만 저장)
 
 function loadClass() {
   try { myClass = JSON.parse(localStorage.getItem(CLASS_KEY)) || null; } catch { myClass = null; }
+  try { myRole = localStorage.getItem(ROLE_KEY) || null; } catch { myRole = null; }
+  try { myNick = localStorage.getItem(NICK_KEY) || ""; } catch { myNick = ""; }
   return myClass;
 }
 
 function setClass(code, name) {
   myClass = { code, name: name || "우리 반" };
   try { localStorage.setItem(CLASS_KEY, JSON.stringify(myClass)); } catch {}
+}
+
+function setRole(role) {
+  myRole = role;
+  try { localStorage.setItem(ROLE_KEY, role); } catch {}
+}
+
+function setNick(nick) {
+  myNick = String(nick || "").trim();
+  try { localStorage.setItem(NICK_KEY, myNick); } catch {}
+}
+
+const isStudent = () => myRole === "student";
+
+/* --- 교사가 만든 반 목록 (이 기기에 저장) --- */
+let teacherClasses = [];
+
+function loadTeacherClasses() {
+  try { teacherClasses = JSON.parse(localStorage.getItem(TEACHER_KEY)) || []; }
+  catch { teacherClasses = []; }
+  return teacherClasses;
+}
+
+function addTeacherClass(code, name) {
+  if (!teacherClasses.some((c) => c.code === code)) {
+    teacherClasses.push({ code, name: name || "우리 반" });
+    try { localStorage.setItem(TEACHER_KEY, JSON.stringify(teacherClasses)); } catch {}
+  }
 }
 
 /** 헷갈리는 글자를 뺀 4자리 반 코드 생성 */
@@ -331,7 +366,8 @@ function renderCharacter() {
   const next = DRAGONS[dragon.level];   // 다음 단계 (없으면 undefined = 최고 레벨)
 
   $("charEmoji").textContent = dragon.emoji;
-  $("charBubble").textContent = dragon.bubble;
+  // 별명이 있으면 "별명의 드래곤"으로 인사
+  $("charBubble").textContent = myNick ? `${myNick}의 드래곤 🐣` : dragon.bubble;
   $("charLevel").textContent = `Lv.${dragon.level}`;
   $("charName").textContent = dragon.name;
   $("charHearts").textContent = hearts;
@@ -398,7 +434,9 @@ function closeMission() {
  * 앞날은 미리 찍는 걸 막습니다. 매일 하는 습관을 만드는 앱이니까요.
  */
 function isEditable(key) {
-  return key === todayKey();
+  // 학생만, 그리고 오늘만 체크할 수 있습니다.
+  // 학부모·교사가 미션을 건드리면 반 통계가 오염됩니다.
+  return isStudent() && key === todayKey();
 }
 
 /** 체크박스 4개를 그림 */
@@ -572,7 +610,8 @@ let reportTimer = null;
  * 요청이 4번 나갑니다. 1.2초 모았다가 마지막 값만 보냅니다.
  */
 function sendProgress(key, count) {
-  if (!isConfigured() || !myClass || !key) return;
+  // 학생 진도만 통계에 올립니다 (학부모·교사 기기는 유령 데이터가 됨)
+  if (!isConfigured() || !myClass || !key || !isStudent()) return;
 
   clearTimeout(reportTimer);
   reportTimer = setTimeout(() => {
@@ -812,13 +851,18 @@ async function saveTeacherTasks() {
      교사는 반 분위기를 알 수 있고 학생은 자기 성장에만 집중합니다.
    =================================================================== */
 
-async function loadClassStats() {
-  const body = $("classBody");
+// 응원 모달 안의 통계 = 지금 내 반
+function loadClassStats() {
+  return loadClassStatsInto(myClass.code, $("classBody"));
+}
+
+// 아무 반 코드나 받아서 그 반 오늘 통계를 body에 그림 (교사 여러 반용)
+async function loadClassStatsInto(code, body) {
   body.innerHTML = `<div class="class-loading">불러오는 중...</div>`;
 
   let rows;
   try {
-    rows = await fetchDayStats(myClass.code, todayKey());
+    rows = await fetchDayStats(code, todayKey());
   } catch (e) {
     console.warn("통계를 불러오지 못했어요:", e);
     body.innerHTML = `<div class="class-loading">통계를 불러오지 못했어요</div>`;
@@ -1123,19 +1167,41 @@ $("diaryText").addEventListener("blur", () => cleanDiary(openKey));
    =================================================================== */
 
 function showGate(section) {
+  $("gateRole").hidden = section !== "role";
   $("gateJoin").hidden = section !== "join";
+  $("gateTeacher").hidden = section !== "teacher";
   $("gateCreate").hidden = section !== "create";
   $("gateDone").hidden = section !== "done";
   $("gateModal").hidden = false;
   if (section === "join") { $("gateError").hidden = true; $("gateInput").focus(); }
+  if (section === "teacher") renderTeacherPanel();
+}
+
+// 학생·학부모 입장 화면을 역할에 맞게 준비
+let pendingRole = "student";
+function startJoin(role) {
+  pendingRole = role;
+  $("gateInput").value = "";
+  $("gateNick").value = myNick || "";
+  $("gateError").hidden = true;
+  // 별명 입력은 학생만
+  $("gateNick").hidden = role !== "student";
+  $("gateJoinDesc").innerHTML = role === "parent"
+    ? "자녀 반의 <b>반 코드</b>를 입력해 주세요.<br>따뜻한 응원을 남길 수 있어요."
+    : "선생님께 받은 <b>반 코드</b>와<br>사용할 <b>별명</b>을 적어주세요.";
+  showGate("join");
 }
 
 function hideGate() { $("gateModal").hidden = true; }
 
+const ROLE_LABEL = { student: "학생", parent: "학부모", teacher: "교사" };
+
 function refreshClassChip() {
   const chip = $("classChip");
   if (myClass && isConfigured()) {
-    $("classChipName").textContent = myClass.name;
+    // 학생이면 별명을, 아니면 역할을 이름 옆에 보여줍니다
+    const who = isStudent() && myNick ? myNick : (ROLE_LABEL[myRole] ?? "");
+    $("classChipName").textContent = who ? `${myClass.name} · ${who}` : myClass.name;
     $("classChipCode").textContent = myClass.code;
     chip.hidden = false;
   } else {
@@ -1163,6 +1229,8 @@ async function joinClass() {
     }
     // 반 이름을 못 가져와도 입장은 됩니다 (이름은 표시용일 뿐)
     setClass(code, myClass?.name);
+    setRole(pendingRole);
+    if (pendingRole === "student") setNick($("gateNick").value);
     hideGate();
     await enterApp();
   } catch (e) {
@@ -1175,11 +1243,67 @@ async function joinClass() {
   }
 }
 
+/* --- 교사 패널: 내가 만든 반 목록 --- */
+
+// "선생님이신가요? 반 관리" → 비밀번호 한 번 확인 후 패널
+async function openTeacherPanel() {
+  if (teacherUnlocked) { showGate("teacher"); return; }
+  const pw = prompt("선생님 비밀번호를 입력해 주세요.");
+  if (pw === null) return;
+  if ((await sha256Hex(pw)) !== TEACHER_PW_HASH) {
+    alert("비밀번호가 틀렸어요.");
+    return;
+  }
+  teacherUnlocked = true;
+  showGate("teacher");
+}
+
+function renderTeacherPanel() {
+  const list = $("teacherList");
+  if (!teacherClasses.length) {
+    list.innerHTML = `<div class="teacher-empty">아직 만든 반이 없어요.<br>아래 버튼으로 첫 반을 만들어 보세요!</div>`;
+    return;
+  }
+  list.innerHTML = teacherClasses.map((c, i) => `
+    <div class="teacher-row">
+      <div class="teacher-info">
+        <div class="teacher-name">${escapeHtml(c.name)}</div>
+        <div class="teacher-code">${c.code}</div>
+      </div>
+      <button class="teacher-act ts-stats" data-i="${i}">📊 통계</button>
+      <button class="teacher-act ts-enter" data-i="${i}">🚪 입장</button>
+    </div>`).join("");
+
+  list.querySelectorAll(".ts-stats").forEach((b) =>
+    b.onclick = () => openTeacherStats(teacherClasses[+b.dataset.i]));
+  list.querySelectorAll(".ts-enter").forEach((b) =>
+    b.onclick = async () => {
+      const c = teacherClasses[+b.dataset.i];
+      setClass(c.code, c.name);
+      setRole("teacher");
+      hideGate();
+      await enterApp();
+    });
+}
+
+// HTML 주입 전 안전 처리 (반 이름에 <> 같은 게 들어와도 태그로 안 먹게)
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function openTeacherStats(c) {
+  $("tsName").textContent = c.name;
+  $("tsCode").textContent = c.code;
+  $("teacherStatsModal").hidden = false;
+  loadClassStatsInto(c.code, $("tsBody"));
+}
+
 async function createNewClass() {
   const err = $("gateCreateError");
   const name = $("gateClassName").value.trim() || "우리 반";
 
-  // 새 반 만들기는 교사 전용 → 비밀번호 확인
+  // 이미 교사 패널을 열 때 비밀번호를 확인했지만, 혹시 몰라 한 번 더
   const entered = await sha256Hex($("gatePw").value);
   if (entered !== TEACHER_PW_HASH) {
     err.textContent = "선생님 비밀번호가 틀렸어요.";
@@ -1199,8 +1323,8 @@ async function createNewClass() {
       if (++guard > 5) break;
     }
     await createClass(code, name);
-    teacherUnlocked = true;          // 방금 비밀번호를 맞혔으니 과제 수정도 열어둠
-    setClass(code, name);
+    teacherUnlocked = true;
+    addTeacherClass(code, name);     // 내 반 목록에 추가 (여러 반 가능)
 
     $("gateNewCode").textContent = code;
     showGate("done");
@@ -1216,6 +1340,7 @@ async function createNewClass() {
 
 /** 반이 정해진 뒤 앱을 그림 */
 async function enterApp() {
+  applyRole();
   refreshClassChip();
   renderCalendar();
   renderCharacter();
@@ -1223,22 +1348,56 @@ async function enterApp() {
   await loadCheers();
 }
 
+/**
+ * 역할에 따라 화면을 바꿉니다.
+ *   학생  : 미션 중심. 응원 버튼 없음(응원은 받기만).
+ *   학부모: 응원 버튼만. 미션·드래곤 숨김.
+ *   교사  : 응원 + 과제. 미션은 못 고침(자기 통계를 오염시키면 안 됨).
+ *
+ * 미션 체크와 진도 보고는 학생일 때만 됩니다. 학부모·교사가 미션을
+ * 건드리면 "오늘의 우리 반" 통계에 유령 데이터가 섞이기 때문입니다.
+ * (isEditable / sendProgress 가 isStudent()를 확인합니다.)
+ */
+function applyRole() {
+  $("cheerBtn").hidden = isStudent();          // 학생만 숨김
+  $("taskBtn").hidden = myRole !== "teacher";  // 교사만 보임
+  // 학부모는 미션·드래곤이 의미 없으니 캘린더/캐릭터를 가리고 응원에 집중
+  document.body.classList.toggle("parent-mode", myRole === "parent");
+}
+
 /* ===================================================================
    이벤트 연결
    =================================================================== */
 
+// 역할 선택
+$("roleStudent").onclick = () => startJoin("student");
+$("roleParent").onclick = () => startJoin("parent");
+$("roleTeacher").onclick = openTeacherPanel;
+
 $("gateJoinBtn").onclick = joinClass;
 $("gateInput").addEventListener("keydown", (e) => { if (e.key === "Enter") joinClass(); });
-$("gateToCreate").onclick = () => showGate("create");
-$("gateToJoin").onclick = () => showGate("join");
-$("gateCreateBtn").onclick = createNewClass;
-$("gateStartBtn").onclick = async () => { hideGate(); await enterApp(); };
-
-// 반 칩을 누르면 반 바꾸기 (게이트 다시 열기)
-$("classChip").onclick = () => {
-  $("gateInput").value = "";
-  showGate("join");
+$("gateNick").addEventListener("keydown", (e) => { if (e.key === "Enter") joinClass(); });
+$("gateJoinBack").onclick = () => showGate("role");
+$("gateTeacherBack").onclick = () => showGate("role");
+$("gateNewClass").onclick = () => {
+  $("gateClassName").value = "";
+  $("gatePw").value = "";
+  $("gateCreateError").hidden = true;
+  showGate("create");
 };
+$("gateCreateBack").onclick = () => showGate("teacher");
+$("gateCreateBtn").onclick = createNewClass;
+$("gateDoneBtn").onclick = () => showGate("teacher");
+$("tsClose").onclick = () => { $("teacherStatsModal").hidden = true; };
+$("teacherStatsModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) $("teacherStatsModal").hidden = true;
+});
+
+// 홈 버튼 → 처음(역할 선택) 화면으로
+$("homeBtn").onclick = () => showGate("role");
+
+// 반 칩을 누르면 역할 선택으로 (반·역할 바꾸기)
+$("classChip").onclick = () => showGate("role");
 
 $("prevMonth").onclick = () => {
   viewMonth--;
@@ -1308,16 +1467,20 @@ renderCharacter();
 resetTheme();
 
 loadClass();
+loadTeacherClasses();
 if (!isConfigured()) {
-  // Firebase 설정 전이면 공유가 없으니 반도 필요 없음. 그냥 앱 사용.
+  // Firebase 설정 전이면 공유가 없으니 반도 필요 없음. 그냥 학생처럼 사용.
+  setRole("student");
+  applyRole();
   loadCheers();
-} else if (myClass) {
-  // 이미 반이 있으면 바로 입장
+} else if (myClass && myRole) {
+  // 이미 역할·반이 정해져 있으면 바로 앱으로
+  applyRole();
   refreshClassChip();
   loadCheers();
 } else {
-  // 반이 없으면 입장 게이트
-  showGate("join");
+  // 처음이면 역할 선택 화면
+  showGate("role");
 }
 
 // 앱을 켜둔 채 자정을 넘겨 날짜/달이 바뀌는 경우.
