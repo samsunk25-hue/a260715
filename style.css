@@ -16,6 +16,12 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* hidden 속성은 항상 이겨야 합니다.
+   .fab 처럼 display:flex 를 준 요소는 그냥 hidden 을 걸어도 안 사라집니다
+   (author의 display:flex 가 [hidden]의 기본 display:none 을 덮어씀).
+   이 한 줄이 그 문제를 전부 막습니다. */
+[hidden] { display: none !important; }
+
 body {
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont,
                "Malgun Gothic", "맑은 고딕", sans-serif;
