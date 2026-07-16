@@ -74,6 +74,15 @@ export async function classExists(code) {
   return snap.exists();
 }
 
+/** 반 정보 가져오기 — { name } 또는 없으면 null */
+export async function getClass(code) {
+  const conn = await connect();
+  if (!conn) return null;
+  const { db, fs } = conn;
+  const snap = await fs.getDoc(fs.doc(db, "classes", code));
+  return snap.exists() ? { name: snap.data().name || "우리 반" } : null;
+}
+
 export async function createClass(code, name) {
   const conn = await connect();
   if (!conn) throw new Error("NOT_CONFIGURED");

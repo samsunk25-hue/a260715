@@ -6,7 +6,7 @@ import {
   isConfigured, addCheer, fetchCheersForMonth,
   reportProgress, fetchDayStats,
   saveTasks, fetchTasksForMonth,
-  classExists, createClass,
+  classExists, createClass, getClass,
 } from "./firebase.js";
 import { clean } from "./badwords.js";
 
@@ -1299,6 +1299,27 @@ function openTeacherStats(c) {
   loadClassStatsInto(c.code, $("tsBody"));
 }
 
+/**
+ * 다른 교사가 만든 반을 코드로 내 목록에 추가 (공동 담임/교과 교사)
+ * 반 자체는 이미 서버에 있으니 새로 만들지 않고, 이 기기의 목록에만 담습니다.
+ */
+async function addExistingClass() {
+  const raw = prompt("추가할 반 코드를 입력하세요. (다른 선생님이 만든 반)");
+  if (raw === null) return;
+  const code = normalizeCode(raw);
+  if (code.length < 3) { alert("반 코드를 정확히 입력해 주세요."); return; }
+
+  try {
+    const info = await getClass(code);
+    if (!info) { alert("그런 반이 없어요. 코드를 다시 확인해 주세요."); return; }
+    addTeacherClass(code, info.name);
+    renderTeacherPanel();
+  } catch (e) {
+    console.error(e);
+    alert("추가에 실패했어요. 인터넷을 확인해 주세요.");
+  }
+}
+
 async function createNewClass() {
   const err = $("gateCreateError");
   const name = $("gateClassName").value.trim() || "우리 반";
@@ -1385,6 +1406,7 @@ $("gateNewClass").onclick = () => {
   $("gateCreateError").hidden = true;
   showGate("create");
 };
+$("gateAddClass").onclick = addExistingClass;
 $("gateCreateBack").onclick = () => showGate("teacher");
 $("gateCreateBtn").onclick = createNewClass;
 $("gateDoneBtn").onclick = () => showGate("teacher");

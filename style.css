@@ -193,6 +193,9 @@ body.parent-mode #app::after {
   line-height: 1.7;
 }
 
+/* 교사 통계 모달은 게이트(z-index 60) 위에 떠야 보입니다 */
+#teacherStatsModal { z-index: 70; }
+
 /* ---------- 교사 반 목록 ---------- */
 .teacher-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .teacher-empty {
