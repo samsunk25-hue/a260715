@@ -1,0 +1,115 @@
+# 🐉 스터디 드래곤 (Study Dragon)
+
+> 나만의 학습 탐험일지 — 매일 미션을 완료하고 5단계로 진화하는 드래곤을 키우는 중학생용 학습 앱
+
+## 이게 뭔가요
+
+학습을 '지루한 의무'가 아닌 '성장 게임'으로 만드는 앱입니다.
+타인과의 비교나 랭킹은 **의도적으로 넣지 않았습니다.** 경쟁이 아니라 스스로의 성장에 집중하도록요.
+
+## 주요 기능
+
+| 기능 | 설명 |
+|---|---|
+| 🎨 **다이내믹 컬러 미션** | 완료 칸 수에 따라 테마가 회색 → 파랑 → 초록 → 주황 → 핑크로 변화 |
+| 🥚 **5단계 드래곤 진화** | 누적 하트에 따라 🥚 → 🐣 → 🦎 → 🐲 → 🐉 |
+| 💕 **전체 응원** | 교사·학부모가 남긴 응원이 그날 접속하는 모든 학생에게 표시 |
+| 📊 **7일 성장 그래프** | 캐릭터를 누르면 최근 7일 달성도를 막대그래프로 |
+| 📔 **주간 회고 일기** | 일요일에만 열리는 자기점검 공간 |
+| 🎉 **완벽 달성 팡파르** | 4칸을 다 채우면 하트가 ⭐로 바뀌고 꽃가루가 터짐 |
+
+## 실행 방법
+
+> ⚠️ **`index.html`을 더블클릭하면 안 됩니다.**
+> `<script type="module">`은 `file://` 주소에서 브라우저 보안정책(CORS)에 막힙니다.
+> 반드시 `http://` 주소로 열어야 합니다.
+
+**방법 1 — 포함된 서버 스크립트 (설치 불필요)**
+
+`서버실행.ps1` 우클릭 → **PowerShell에서 실행**
+브라우저가 자동으로 `http://localhost:5500` 을 엽니다.
+
+**방법 2 — VS Code Live Server**
+
+`Live Server` 확장 설치 → `index.html` 우클릭 → **Open with Live Server**
+
+## 파일 구조
+
+```
+├── index.html      화면 뼈대 (메인 + 모달 3개)
+├── style.css       디자인 + 컬러 테마
+├── app.js          모든 로직
+├── firebase.js     Firebase 설정 + 응원 읽기/쓰기 (여기만 Firebase를 씀)
+├── 서버실행.ps1     로컬 서버 (설치 없이 실행용)
+└── 개발계획.md      우선순위 · 일정 · 설계 근거
+```
+
+## 데이터 설계
+
+로그인이 없는 앱이라, 데이터를 이렇게 나눴습니다:
+
+| 데이터 | 저장 위치 | 이유 |
+|---|---|---|
+| 미션 체크 / 누적 하트 / 드래곤 / 일기 | 브라우저 localStorage | 개인 것. 로그인이 없으니 누구 건지 구분할 방법도 없음 |
+| **전체 응원 메시지** | **Firebase Firestore** | 교사·학부모 → 모든 학생. 공유가 필수 |
+
+덕분에 Firestore에는 컬렉션 하나만 있으면 됩니다.
+
+```
+cheers/{자동ID}
+  ├─ date: "2026-07-15"    ← 문서 ID가 아니라 필드
+  ├─ message: "오늘도 힘내자!"
+  └─ createdAt: 타임스탬프
+```
+
+날짜를 **필드**로 둔 덕에 범위 쿼리 한 번으로 그 달 전체를 가져와서,
+캘린더의 핑크 뱃지와 모달의 응원 카드를 **조회 1번으로 함께** 해결합니다.
+
+## Firebase 설정 (전체 응원 기능)
+
+설정하지 않아도 **나머지 기능은 전부 정상 동작합니다.** 응원만 잠겨 있습니다.
+
+1. [Firebase 콘솔](https://console.firebase.google.com)에서 프로젝트 생성
+2. **Firestore Database** 생성 — 위치는 `asia-northeast3 (Seoul)`
+3. **프로젝트 설정 → 웹 앱(`</>`) 추가** → `firebaseConfig` 복사
+4. `firebase.js` 상단의 `firebaseConfig`에 붙여넣기
+5. Firestore **규칙** 탭에 아래를 붙여넣고 게시
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /cheers/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.message.size() < 200
+                    && request.resource.data.date is string;
+      allow update, delete: if false;   // 응원은 쌓이기만 하고 사라지지 않음
+    }
+  }
+}
+```
+
+> `apiKey`는 비밀번호가 아닙니다. Firebase 웹 설정값은 원래 모든 사용자의 브라우저에
+> 노출되도록 설계된 값이라 공개해도 됩니다. 실제 보안은 위 **규칙**이 담당합니다.
+
+### 알려진 한계
+
+로그인이 없어서 **주소를 아는 사람은 누구나 응원을 쓸 수 있습니다.**
+교실 시연·과제 제출 수준에서는 괜찮지만, 실제로 여러 학교에 배포한다면
+Firebase Authentication이 필요합니다. 부적절한 메시지는 Firebase 콘솔에서 직접 삭제해야 합니다.
+
+## 커스터마이징
+
+선생님 지정 과제는 [`app.js`](app.js) 맨 위에서 바꿉니다:
+
+```js
+const TEACHER_TASKS = [
+  "수학 문제집 2쪽 풀기",
+  "영어 단어 20개 외우기",
+  "독서 30분 하기",
+];
+```
+
+드래곤 진화 기준(`DRAGONS`)과 테마 색(`THEME_COLORS`)도 바로 아래에 있습니다.

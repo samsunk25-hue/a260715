@@ -1,0 +1,16 @@
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 편집기
+.vscode/
+.idea/
+
+# 백업 폴더 (개발계획.md의 Day 1 백업 등)
+백업_*/
+backup_*/
+
+# Firebase CLI (나중에 배포할 때 생김)
+.firebase/
+firebase-debug.log

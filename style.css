@@ -1,0 +1,509 @@
+/* ===================================================================
+   스터디 드래곤 - 스타일
+   핵심: --theme 변수 하나만 바꾸면 화면 전체 색이 바뀝니다.
+   =================================================================== */
+
+:root {
+  --theme: #94A3B8;          /* 기본(0칸) 회색 — JS가 이 값을 바꿉니다 */
+  --theme-soft: #94A3B815;   /* 같은 색의 아주 옅은 배경 (뒤 15는 투명도) */
+  --ink: #1E293B;
+  --ink-soft: #64748B;
+  --card: #FFFFFF;
+  --line: #E2E8F0;
+  --radius: 18px;
+  --shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont,
+               "Malgun Gothic", "맑은 고딕", sans-serif;
+  background: var(--theme-soft);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.5s ease;   /* 테마가 부드럽게 바뀌도록 */
+}
+
+#app {
+  max-width: 480px;          /* 모바일 우선. PC에서도 폰 크기로 보임 */
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 20px 16px 140px;  /* 아래 140px = 캐릭터 카드 자리 */
+  position: relative;
+}
+
+/* ---------- 헤더 ---------- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.header h1 {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--theme);
+  min-width: 130px;
+  text-align: center;
+  transition: color 0.5s ease;
+}
+.nav-btn {
+  width: 38px; height: 38px;
+  border: none; border-radius: 50%;
+  background: var(--card);
+  color: var(--theme);
+  font-size: 22px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: color 0.5s ease, transform 0.1s;
+}
+.nav-btn:active { transform: scale(0.9); }
+
+/* ---------- 응원 작성 플로팅 버튼 ---------- */
+.cheer-fab {
+  position: fixed;
+  top: 18px;
+  right: max(18px, calc(50vw - 240px + 18px));  /* 480px 컨테이너 우측에 붙임 */
+  width: 46px; height: 46px;
+  border: none; border-radius: 50%;
+  background: var(--card);
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  z-index: 30;
+  transition: transform 0.15s;
+}
+.cheer-fab:active { transform: scale(0.88); }
+
+/* ---------- 캘린더 ---------- */
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 6px;
+}
+.weekdays span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 6px 0;
+}
+.weekdays .sun { color: #EF4444; }
+.weekdays .sat { color: #3B82F6; }
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.day {
+  position: relative;
+  aspect-ratio: 1 / 1.15;
+  border: none;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 7px;
+  gap: 2px;
+  font-family: inherit;
+  transition: transform 0.1s;
+}
+.day:active { transform: scale(0.93); }
+.day.empty {
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+  pointer-events: none;
+}
+.day.today {
+  outline: 2px solid var(--theme);
+  outline-offset: -2px;
+  transition: outline-color 0.5s ease;
+}
+.day.future { opacity: 0.45; }
+
+.day-num { font-size: 13px; font-weight: 700; color: var(--ink); }
+.day.sun .day-num { color: #EF4444; }
+.day.sat .day-num { color: #3B82F6; }
+
+/* 날짜 아래 하트 (또는 4칸 완료 시 별) */
+.day-marks {
+  font-size: 8px;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  max-width: 90%;
+  text-align: center;
+  word-break: break-all;
+}
+.day-marks.perfect { font-size: 13px; }
+
+/* 응원이 있는 날짜 뱃지 (Day 2에서 켜짐) */
+.day-badge {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #EC4899;
+  animation: blink 1.2s ease-in-out infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(0.75); }
+}
+
+/* ---------- 하단 캐릭터 카드 ---------- */
+.char-card {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(448px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.16);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  z-index: 20;
+  transition: transform 0.12s;
+}
+.char-card:active { transform: translateX(-50%) scale(0.97); }
+
+.char-emoji {
+  font-size: 40px;
+  display: block;
+  animation: float 2.6s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+.char-mid { flex: 1; min-width: 0; }
+.char-bubble {
+  display: inline-block;
+  font-size: 11px;
+  background: var(--theme-soft);
+  color: var(--theme);
+  padding: 2px 8px;
+  border-radius: 8px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition: color 0.5s ease, background 0.5s ease;
+}
+.char-name { font-size: 14px; font-weight: 800; }
+.char-level { color: var(--theme); transition: color 0.5s ease; }
+.char-hearts { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
+
+.char-right { width: 68px; text-align: right; }
+.exp-bar {
+  height: 7px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.exp-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--theme);
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.5s ease;
+}
+.exp-text { font-size: 9px; color: var(--ink-soft); margin-top: 4px; }
+
+/* ===================================================================
+   모달 공통
+   =================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 50;
+  display: flex;
+  animation: fadeIn 0.2s ease;
+}
+.modal-backdrop[hidden] { display: none; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- 화면 2: 아래에서 올라오는 시트 ---------- */
+.sheet {
+  margin-top: auto;
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  padding: 10px 20px 24px;
+  animation: slideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sheet-handle {
+  width: 38px; height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+.sheet-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--theme);
+  margin-bottom: 14px;
+  transition: color 0.5s ease;
+}
+
+/* ---------- 응원 영역 ---------- */
+.cheer-area { margin-bottom: 18px; }
+.cheer-card {
+  background: linear-gradient(135deg, #FDF2F8, #FCE7F3);
+  border: 1px solid #FBCFE8;
+  border-radius: 14px;
+  padding: 11px 14px;
+  margin-bottom: 7px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #9D174D;
+  animation: fadeIn 0.3s ease;
+  word-break: break-word;
+}
+.cheer-card::before { content: "💕 "; }
+.cheer-empty {
+  background: #F8FAFC;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.cheer-loading { text-align: center; font-size: 12px; color: var(--ink-soft); padding: 14px; }
+
+/* ---------- 미션 리스트 ---------- */
+.mission-list { display: flex; flex-direction: column; gap: 9px; }
+.mission-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: #F8FAFC;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s;
+}
+.mission-item input[type="checkbox"] { display: none; }
+.checkmark {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  border: 2px solid #CBD5E1;
+  border-radius: 7px;
+  position: relative;
+  transition: background 0.25s, border-color 0.25s;
+}
+.checkmark::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.mission-item.done {
+  border-color: var(--theme);
+  background: var(--theme-soft);
+}
+.mission-item.done .checkmark {
+  background: var(--theme);
+  border-color: var(--theme);
+}
+.mission-item.done .checkmark::after { opacity: 1; transform: scale(1); }
+.mission-label { font-size: 14px; font-weight: 600; flex: 1; }
+.mission-item.done .mission-label { color: var(--theme); }
+
+.custom-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+}
+.custom-input::placeholder { color: #94A3B8; font-weight: 500; }
+.mission-item.done .custom-input { color: var(--theme); }
+/* 내용이 비어 있으면 체크 못 하도록 흐리게 */
+.checkmark.locked { opacity: 0.4; cursor: not-allowed; }
+#customMark { cursor: pointer; }
+#customMark:focus-visible { outline: 2px solid var(--theme); outline-offset: 2px; }
+.custom-hint { font-size: 11px; color: var(--ink-soft); padding-left: 4px; }
+.custom-hint[hidden] { display: none; }
+
+/* ---------- 진행 표시 ---------- */
+.progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 4px;
+}
+.progress-hearts { font-size: 20px; letter-spacing: 2px; }
+.progress-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--theme);
+  transition: color 0.5s ease;
+}
+
+/* ---------- 주간 일기 ---------- */
+.diary-area {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+}
+.diary-area[hidden] { display: none; }
+.diary-title { font-size: 14px; font-weight: 800; margin-bottom: 9px; }
+.diary-input {
+  width: 100%;
+  min-height: 90px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 11px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.25s;
+}
+.diary-input:focus { border-color: var(--theme); }
+.diary-saved {
+  display: block;
+  font-size: 11px;
+  color: #22C55E;
+  height: 14px;
+  margin-top: 5px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.diary-saved.show { opacity: 1; }
+
+/* ---------- 버튼 ---------- */
+.btn-close {
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  border: none;
+  border-radius: 14px;
+  background: var(--theme);
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.5s ease, transform 0.1s;
+}
+.btn-close:active { transform: scale(0.98); }
+
+/* ---------- 화면 3 / 4: 중앙 다이얼로그 ---------- */
+.dialog {
+  margin: auto;
+  width: min(400px, calc(100vw - 40px));
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--card);
+  border-radius: 22px;
+  padding: 26px 22px;
+  animation: pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pop {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.dialog-title { font-size: 19px; font-weight: 800; text-align: center; margin-bottom: 9px; }
+.dialog-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-bottom: 16px;
+}
+.cheer-input {
+  width: 100%;
+  min-height: 110px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 13px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.cheer-input:focus { border-color: #EC4899; }
+.cheer-count { text-align: right; font-size: 11px; color: var(--ink-soft); margin-top: 5px; }
+
+.dialog-btns { display: flex; gap: 9px; margin-top: 14px; }
+.btn-ghost, .btn-primary {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.2s;
+}
+.btn-ghost { background: #F1F5F9; color: var(--ink-soft); }
+.btn-primary { background: #EC4899; color: #fff; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-ghost:active, .btn-primary:active { transform: scale(0.97); }
+
+/* ---------- 화면 4: 성장 그래프 ---------- */
+.stats-dialog { text-align: center; }
+.stats-emoji {
+  font-size: 68px;
+  display: block;
+  margin-bottom: 6px;
+  animation: float 2.6s ease-in-out infinite;
+}
+.stats-title { font-size: 21px; font-weight: 800; margin-bottom: 5px; }
+.stats-title #statsLevel { color: var(--theme); transition: color 0.5s ease; }
+.stats-hearts { font-size: 13px; color: var(--ink-soft); margin-bottom: 18px; }
+.chart-box { height: 190px; margin-bottom: 14px; }
+.stats-msg { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+
+/* 화면이 아주 작은 기기 대응 */
+@media (max-width: 360px) {
+  .char-right { width: 54px; }
+  .day-num { font-size: 12px; }
+}

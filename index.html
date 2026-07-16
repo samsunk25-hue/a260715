@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>스터디 드래곤 - 나만의 학습 탐험일지</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== 화면 1. 메인 캘린더 ===== -->
+  <div id="app">
+
+    <header class="header">
+      <button id="prevMonth" class="nav-btn" aria-label="이전 달">‹</button>
+      <h1 id="monthTitle">2026년 7월</h1>
+      <button id="nextMonth" class="nav-btn" aria-label="다음 달">›</button>
+    </header>
+
+    <!-- 우측 상단 플로팅 버튼: 학부모/교사 응원 작성 -->
+    <button id="cheerBtn" class="cheer-fab" aria-label="전체 응원 남기기">🧒</button>
+
+    <main class="calendar-wrap">
+      <div class="weekdays">
+        <span class="sun">일</span><span>월</span><span>화</span>
+        <span>수</span><span>목</span><span>금</span><span class="sat">토</span>
+      </div>
+      <div id="calendar" class="calendar"></div>
+    </main>
+
+    <!-- 하단 캐릭터 카드 (상시 노출) -->
+    <button id="charCard" class="char-card">
+      <div class="char-left">
+        <span id="charEmoji" class="char-emoji">🥚</span>
+      </div>
+      <div class="char-mid">
+        <div class="char-bubble" id="charBubble">따뜻하게 품어주기</div>
+        <div class="char-name">
+          <span id="charLevel" class="char-level">Lv.1</span>
+          <span id="charName">신비한 알</span>
+        </div>
+        <div class="char-hearts">❤️ <span id="charHearts">0</span></div>
+      </div>
+      <div class="char-right">
+        <div class="exp-bar"><div id="expFill" class="exp-fill"></div></div>
+        <div class="exp-text" id="expText">다음까지 10</div>
+      </div>
+    </button>
+  </div>
+
+  <!-- ===== 화면 2. 일일 미션 체크 모달 ===== -->
+  <div id="missionModal" class="modal-backdrop" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="missionDate">
+      <div class="sheet-handle"></div>
+
+      <h2 id="missionDate" class="sheet-title">7월 15일 화요일</h2>
+
+      <!-- 응원 영역 (Day 2에서 Firestore 연결) -->
+      <section id="cheerArea" class="cheer-area">
+        <div class="cheer-empty">오늘의 응원 메시지가 없어요</div>
+      </section>
+
+      <!-- 미션 리스트 -->
+      <section class="mission-list" id="missionList">
+        <!-- 선생님 지정 과제 3개는 app.js가 그려줍니다 -->
+        <!-- 자율 학습: label이 아니라 div입니다.
+             label로 감싸면 텍스트를 입력하려고 클릭할 때마다
+             체크박스가 멋대로 토글됩니다. -->
+        <div class="mission-item custom-item">
+          <input type="checkbox" id="customCheck" disabled />
+          <span class="checkmark" id="customMark" role="checkbox"
+                aria-checked="false" tabindex="0"></span>
+          <input type="text" id="customText" class="custom-input"
+                 placeholder="나만의 자율 학습을 적어보세요" maxlength="40" />
+        </div>
+        <p class="custom-hint" id="customHint">✏️ 자율 학습 내용을 적으면 체크할 수 있어요</p>
+      </section>
+
+      <!-- 진행 표시 -->
+      <div class="progress-row">
+        <span id="progressHearts" class="progress-hearts"></span>
+        <span id="progressText" class="progress-text">0 / 4</span>
+      </div>
+
+      <!-- 일요일 한정: 주간 자기점검 일기 (Day 2) -->
+      <section id="diaryArea" class="diary-area" hidden>
+        <h3 class="diary-title">📔 이번 주 나는 어땠나요?</h3>
+        <textarea id="diaryText" class="diary-input"
+                  placeholder="한 주를 되돌아보며 자유롭게 적어보세요."></textarea>
+        <span class="diary-saved" id="diarySaved"></span>
+      </section>
+
+      <button id="missionClose" class="btn-close">닫기</button>
+    </div>
+  </div>
+
+  <!-- ===== 화면 3. 전체 응원 작성 모달 (Day 2) ===== -->
+  <div id="cheerModal" class="modal-backdrop" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="cheerTitle">
+      <h2 id="cheerTitle" class="dialog-title">전체 응원 남기기</h2>
+      <p class="dialog-desc">
+        이곳에 작성된 메시지는 오늘 앱에 접속하는<br />모든 학생들의 화면 상단에 고정됩니다!
+      </p>
+      <textarea id="cheerInput" class="cheer-input" maxlength="199"
+                placeholder="따뜻한 응원 한마디를 남겨주세요 😊"></textarea>
+      <div class="cheer-count"><span id="cheerCount">0</span> / 199</div>
+      <div class="dialog-btns">
+        <button id="cheerCancel" class="btn-ghost">취소</button>
+        <button id="cheerSubmit" class="btn-primary">메시지 띄우기 🚀</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 화면 4. 누적 성장 그래프 (Day 2) ===== -->
+  <div id="statsModal" class="modal-backdrop" hidden>
+    <div class="dialog stats-dialog" role="dialog" aria-modal="true">
+      <span id="statsEmoji" class="stats-emoji">🥚</span>
+      <h2 class="stats-title">
+        <span id="statsLevel">Lv.1</span> <span id="statsName">신비한 알</span>
+      </h2>
+      <div class="stats-hearts">총 누적 ❤️ <span id="statsHearts">0</span></div>
+      <div class="chart-box"><canvas id="weekChart"></canvas></div>
+      <p class="stats-msg">매일 미션을 완료하고 캐릭터를 진화시켜 보세요!</p>
+      <button id="statsClose" class="btn-close">닫기</button>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
