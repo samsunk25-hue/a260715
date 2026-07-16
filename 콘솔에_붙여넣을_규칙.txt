@@ -1,0 +1,22 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /cheers/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.message.size() < 200;
+      allow update, delete: if false;
+    }
+    match /stats/{id} {
+      allow read: if true;
+      allow write: if request.resource.data.count is int
+                   && request.resource.data.count >= 0
+                   && request.resource.data.count <= 4
+                   && request.resource.data.date is string
+                   && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                   && request.resource.data.keys().hasOnly(['date', 'count', 'updatedAt']);
+      allow delete: if false;
+    }
+  }
+}

@@ -88,6 +88,9 @@
         <div class="cheer-empty">오늘의 응원 메시지가 없어요</div>
       </section>
 
+      <!-- 오늘이 아닌 날짜를 열었을 때 안내 -->
+      <div id="lockNote" class="lock-note" hidden></div>
+
       <!-- 미션 리스트 -->
       <section class="mission-list" id="missionList">
         <!-- 선생님 지정 과제 3개는 app.js가 그려줍니다 -->
@@ -136,6 +139,33 @@
         <button id="cheerCancel" class="btn-ghost">취소</button>
         <button id="cheerSubmit" class="btn-primary">메시지 띄우기 🚀</button>
       </div>
+
+      <!-- 오늘의 우리 반 (익명 통계)
+           학생 개인을 특정하지 않습니다. 이름도 별명도 저장하지 않아요. -->
+      <section class="class-stats" id="classStats">
+        <h3 class="class-title">📊 오늘의 우리 반</h3>
+        <div id="classBody" class="class-body">
+          <div class="class-loading">불러오는 중...</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== 진화 축하 팝업 ===== -->
+  <div id="levelModal" class="modal-backdrop level-backdrop" hidden>
+    <div class="level-card" role="dialog" aria-modal="true" aria-labelledby="levelHead">
+      <div class="level-badge">LEVEL UP!</div>
+      <div class="level-emoji-wrap">
+        <span id="levelOld" class="level-old">🥚</span>
+        <span class="level-arrow">→</span>
+        <span id="levelNew" class="level-emoji">🐣</span>
+      </div>
+      <h2 id="levelHead" class="level-head">
+        <span id="levelLv">Lv.2</span> <span id="levelName">꼬마 해치</span>
+      </h2>
+      <p id="levelBubble" class="level-bubble">알을 깨고 나왔어!</p>
+      <div class="level-hearts">지금까지 모은 하트 ❤️ <span id="levelHearts">10</span></div>
+      <button id="levelClose" class="btn-close">고마워! 🎉</button>
     </div>
   </div>
 
@@ -146,9 +176,10 @@
       <h2 class="stats-title">
         <span id="statsLevel">Lv.1</span> <span id="statsName">신비한 알</span>
       </h2>
-      <div class="stats-hearts">총 누적 ❤️ <span id="statsHearts">0</span></div>
+      <div class="stats-hearts">이번 달 ❤️ <span id="statsHearts">0</span></div>
       <div class="chart-box"><canvas id="weekChart"></canvas></div>
       <p class="stats-msg">매일 미션을 완료하고 캐릭터를 진화시켜 보세요!</p>
+      <p class="stats-reset">🗓️ 매월 1일에 알부터 다시 시작해요</p>
       <button id="statsClose" class="btn-close">닫기</button>
     </div>
   </div>

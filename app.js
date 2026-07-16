@@ -2,7 +2,10 @@
    app.js — 스터디 드래곤 메인 로직
    =================================================================== */
 
-import { isConfigured, addCheer, fetchCheersForMonth } from "./firebase.js";
+import {
+  isConfigured, addCheer, fetchCheersForMonth,
+  reportProgress, fetchDayStats,
+} from "./firebase.js";
 import { clean } from "./badwords.js";
 
 /* ===================================================================
@@ -25,16 +28,30 @@ const THEME_COLORS = [
   "#F43F5E", // 4칸 — 핑크/빨강
 ];
 
-// 5단계 드래곤 (PRD 기능 ②) — min은 누적 하트 기준
+/**
+ * 5단계 드래곤 (PRD 기능 ②) — min은 "이번 달" 하트 기준
+ *
+ * 매월 1일에 알로 돌아가므로 기준도 한 달 크기에 맞춰야 합니다.
+ * 한 달 최대는 약 120하트(30일 × 4칸)입니다.
+ *
+ *   하루 평균 1칸 (월 30)  -> Lv.3 날쌘 아기용
+ *   하루 평균 2칸 (월 60)  -> Lv.4 용맹한 드래곤
+ *   하루 평균 2.5칸 (월 75) -> Lv.5 마스터 드래곤
+ *
+ * 예전엔 Lv.5가 100이었는데, 그건 평생 누적이라 가능했던 숫자입니다.
+ * 월간으로 바꾸면 25일을 완벽하게 채워야 해서 아무도 마스터를 못 봅니다.
+ * PRD 화면 1의 예시 "Lv.3, ❤️32"는 이 기준에서도 그대로 Lv.3입니다.
+ */
 const DRAGONS = [
-  { min: 0,   emoji: "🥚", name: "신비한 알",     bubble: "따뜻하게 품어주기" },
-  { min: 10,  emoji: "🐣", name: "꼬마 해치",     bubble: "알을 깨고 나왔어!" },
-  { min: 30,  emoji: "🦎", name: "날쌘 아기용",   bubble: "날개가 돋아났어!" },
-  { min: 60,  emoji: "🐲", name: "용맹한 드래곤", bubble: "비늘이 단단해졌어!" },
-  { min: 100, emoji: "🐉", name: "마스터 드래곤", bubble: "전설의 마스터다!" },
+  { min: 0,  emoji: "🥚", name: "신비한 알",     bubble: "따뜻하게 품어주기" },
+  { min: 10, emoji: "🐣", name: "꼬마 해치",     bubble: "알을 깨고 나왔어!" },
+  { min: 25, emoji: "🦎", name: "날쌘 아기용",   bubble: "날개가 돋아났어!" },
+  { min: 45, emoji: "🐲", name: "용맹한 드래곤", bubble: "비늘이 단단해졌어!" },
+  { min: 70, emoji: "🐉", name: "마스터 드래곤", bubble: "전설의 마스터다!" },
 ];
 
 const STORE_KEY = "studyDragon";
+const DEVICE_KEY = "studyDragonDevice";
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 
 /* ===================================================================
@@ -56,6 +73,24 @@ function dateKey(d) {
 }
 
 const todayKey = () => dateKey(new Date());
+
+/**
+ * 이 기기의 익명 ID
+ *
+ * 교사용 통계에서 "학생 몇 명"을 세려면 기기를 구분할 무언가가 필요합니다.
+ * 이름이나 별명 대신 그냥 난수를 씁니다. 사람과 연결되는 정보가 아니라
+ * 데이터를 전부 내려받아도 누구인지 알아낼 수 없습니다.
+ * (PRD 2장 "복잡한 개인정보나 별명 연동 없이"를 지키기 위한 방식입니다.)
+ */
+function deviceId() {
+  let id = null;
+  try { id = localStorage.getItem(DEVICE_KEY); } catch {}
+  if (!id) {
+    id = (crypto.randomUUID?.() ?? String(Math.random()).slice(2) + Date.now());
+    try { localStorage.setItem(DEVICE_KEY, id); } catch {}
+  }
+  return id;
+}
 
 /* ===================================================================
    저장 — localStorage (내 기기 전용)
@@ -106,12 +141,25 @@ function countDone(key) {
   return t + c;
 }
 
+/** Date → "2026-07" */
+const monthOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+const thisMonth = () => monthOf(new Date());
+
 /**
- * 누적 하트 = 모든 날짜의 완료 칸 수 합계
+ * 이번 달 하트 = 이번 달 날짜들의 완료 칸 수 합계
+ *
+ * ★ 매월 1일에 드래곤이 알로 돌아가는 방식 ★
+ *   지난 기록을 지우지 않습니다. 세는 범위만 이번 달로 좁힐 뿐입니다.
+ *   그래서 1일이 되면 이번 달 하트가 자연스럽게 0이 되고, 캘린더의
+ *   지난 달 하트와 7일 그래프는 그대로 남습니다. 지울 게 없으니
+ *   리셋이 실패하거나 데이터가 날아갈 일도 없습니다.
+ *
  * ※ 따로 저장하지 않고 매번 셉니다. 두 값이 어긋날 일이 없어서 안전합니다.
  */
-function totalHearts() {
-  return Object.keys(store.missions).reduce((sum, k) => sum + countDone(k), 0);
+function monthHearts(mk = thisMonth()) {
+  return Object.keys(store.missions)
+    .filter((k) => k.startsWith(mk + "-"))     // "2026-07-15".startsWith("2026-07-")
+    .reduce((sum, k) => sum + countDone(k), 0);
 }
 
 /* ===================================================================
@@ -216,7 +264,7 @@ function dragonOf(hearts) {
 }
 
 function renderCharacter() {
-  const hearts = totalHearts();
+  const hearts = monthHearts();
   const dragon = dragonOf(hearts);
   const next = DRAGONS[dragon.level];   // 다음 단계 (없으면 undefined = 최고 레벨)
 
@@ -257,6 +305,13 @@ function openMission(key) {
   if (isSunday) {
     $("diaryText").value = store.diaries[key] ?? "";
     $("diarySaved").classList.remove("show");
+    // 미션과 같은 규칙: 그날에만 쓸 수 있습니다.
+    // 미션은 잠겼는데 일기만 열려 있으면 앱이 앞뒤가 안 맞습니다.
+    const editable = isEditable(key);
+    $("diaryText").readOnly = !editable;
+    $("diaryText").placeholder = editable
+      ? "한 주를 되돌아보며 자유롭게 적어보세요."
+      : "지난 일요일의 기록은 확인만 할 수 있어요.";
   }
 
   $("missionModal").hidden = false;
@@ -275,10 +330,32 @@ function closeMission() {
   resetTheme();
 }
 
+/**
+ * 오늘 날짜인가?
+ * 미션 체크는 당일에만 할 수 있습니다. 지난 날은 몰아서 채우는 걸 막고,
+ * 앞날은 미리 찍는 걸 막습니다. 매일 하는 습관을 만드는 앱이니까요.
+ */
+function isEditable(key) {
+  return key === todayKey();
+}
+
 /** 체크박스 4개를 그림 */
 function renderMissionList() {
   const mission = getMission(openKey);
   const list = $("missionList");
+  const editable = isEditable(openKey);
+
+  // 오늘이 아니면 왜 못 고치는지 알려줍니다
+  const note = $("lockNote");
+  if (editable) {
+    note.hidden = true;
+  } else {
+    note.hidden = false;
+    note.textContent =
+      openKey > todayKey()
+        ? "🔒 아직 오지 않은 날이에요. 그날이 되면 체크할 수 있어요."
+        : "🔒 지난 날은 확인만 할 수 있어요. 미션은 그날에만 체크할 수 있답니다.";
+  }
 
   // 선생님 과제 3개는 매번 새로 그림 (자율학습 줄은 HTML에 있으니 건드리지 않음)
   list.querySelectorAll(".teacher-item").forEach((el) => el.remove());
@@ -287,11 +364,14 @@ function renderMissionList() {
     const item = document.createElement("label");
     item.className = "mission-item teacher-item";
     if (mission.tasks[i]) item.classList.add("done");
+    if (!editable) item.classList.add("locked");
 
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = mission.tasks[i];
+    cb.disabled = !editable;
     cb.addEventListener("change", () => {
+      if (!isEditable(openKey)) return;   // 안전장치
       mission.tasks[i] = cb.checked;
       save();
       afterCheck();
@@ -316,19 +396,23 @@ function renderMissionList() {
 
   customText.value = mission.custom.text;
   customCheck.checked = mission.custom.done;
+  customText.readOnly = !editable;
+  customItem.classList.toggle("locked", !editable);
   syncCustomRow();
 
   function syncCustomRow() {
     const hasText = customText.value.trim().length > 0;
     const on = customCheck.checked && hasText;
-    customCheck.disabled = !hasText;
+    customCheck.disabled = !hasText || !editable;
     customMark.setAttribute("aria-checked", String(on));
-    customMark.classList.toggle("locked", !hasText);
-    $("customHint").hidden = hasText;
+    customMark.classList.toggle("locked", !hasText || !editable);
+    // 안내 문구는 오늘이면서 아직 안 적었을 때만
+    $("customHint").hidden = hasText || !editable;
     customItem.classList.toggle("done", on);
   }
 
   function toggleCustom() {
+    if (!isEditable(openKey)) return;       // 오늘만 체크 가능
     if (!customText.value.trim()) return;   // 내용 없이는 체크 못 함
     customCheck.checked = !customCheck.checked;
     mission.custom.done = customCheck.checked;
@@ -338,6 +422,7 @@ function renderMissionList() {
   }
 
   customText.oninput = () => {
+    if (!isEditable(openKey)) return;
     mission.custom.text = customText.value;
     // 내용을 지우면 체크도 함께 풀림 (빈 자율학습이 하트로 세어지면 안 되니까)
     if (!customText.value.trim()) {
@@ -368,6 +453,72 @@ function afterCheck() {
   // 4칸 완료 = 팡파르 (PRD 기능 ①)
   if (done === 4) celebrate();
   else if (lastCelebrated === openKey) lastCelebrated = null;   // 풀렸으면 다시 축하할 수 있게
+
+  checkLevelUp();
+  sendProgress(openKey, done);
+}
+
+/* ===================================================================
+   진화 축하 팝업 (PRD 기능 ②)
+
+   진화는 이 앱의 정체성인데, 캐릭터 카드의 이모지가 조용히 바뀌는 것만으로는
+   학생이 알아채지 못하고 지나갑니다. 레벨이 오른 순간을 확실히 보여줍니다.
+   =================================================================== */
+
+// 앱을 켤 때의 레벨. 여기서 초기화하지 않고 첫 체크 때 초기화하면,
+// 하필 그 체크로 레벨이 오른 학생이 팝업을 못 보고 지나갑니다.
+let shownLevel = 1;
+let shownMonth = null;
+
+function checkLevelUp() {
+  // ★ 달이 바뀌면 기준을 다시 잡습니다 ★
+  //   이게 없으면 이렇습니다: 7월에 Lv.5까지 갔다가 8월 1일에 알로
+  //   리셋되면 레벨은 1인데 shownLevel은 5로 남습니다. 그러면 8월 내내
+  //   "1 <= 5" 라서 축하 팝업이 한 번도 안 뜹니다.
+  const mk = thisMonth();
+  if (mk !== shownMonth) {
+    shownMonth = mk;
+    shownLevel = dragonOf(monthHearts(mk)).level;
+  }
+
+  const hearts = monthHearts();
+  const now = dragonOf(hearts);
+  if (now.level <= shownLevel) return;
+
+  const before = DRAGONS[shownLevel - 1];
+  shownLevel = now.level;
+
+  $("levelOld").textContent = before?.emoji ?? "🥚";
+  $("levelNew").textContent = now.emoji;
+  $("levelLv").textContent = `Lv.${now.level}`;
+  $("levelName").textContent = now.name;
+  $("levelBubble").textContent = now.bubble;
+  $("levelHearts").textContent = hearts;
+  $("levelModal").hidden = false;
+
+  celebrateBurst();
+}
+
+/* ===================================================================
+   익명 진도 보고 (교사용 통계)
+   =================================================================== */
+
+let reportTimer = null;
+
+/**
+ * 체크할 때마다 바로 보내면, 4개를 연달아 누르는 흔한 동작에
+ * 요청이 4번 나갑니다. 1.2초 모았다가 마지막 값만 보냅니다.
+ */
+function sendProgress(key, count) {
+  if (!isConfigured() || !key) return;
+
+  clearTimeout(reportTimer);
+  reportTimer = setTimeout(() => {
+    reportProgress(key, deviceId(), count).catch((e) => {
+      // 통계는 부가 기능입니다. 실패해도 학생의 앱은 멀쩡해야 합니다.
+      console.warn("진도 보고 실패:", e);
+    });
+  }, 1200);
 }
 
 function updateProgress() {
@@ -390,10 +541,8 @@ function updateProgress() {
 let confettiFn = null;
 let lastCelebrated = null;
 
-async function celebrate() {
-  if (lastCelebrated === openKey) return;   // 같은 날 두 번 터지지 않게
-  lastCelebrated = openKey;
-
+/** 꽃가루 터뜨리기 — 4칸 달성과 진화 축하가 같이 씁니다 */
+async function celebrateBurst() {
   try {
     if (!confettiFn) {
       const mod = await import("https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/+esm");
@@ -405,6 +554,7 @@ async function celebrate() {
         spread: 70,
         origin: { x, y: 0.7 },
         colors: ["#F43F5E", "#EC4899", "#FBBF24", "#22C55E", "#3B82F6"],
+        zIndex: 100,   // 모달(z-index 50)보다 위에서 터지도록
       });
     shoot(0.25);
     setTimeout(() => shoot(0.75), 150);
@@ -412,6 +562,12 @@ async function celebrate() {
   } catch {
     // 인터넷이 없어도 앱은 계속 동작해야 하므로 조용히 넘어감
   }
+}
+
+function celebrate() {
+  if (lastCelebrated === openKey) return;   // 같은 날 두 번 터지지 않게
+  lastCelebrated = openKey;
+  celebrateBurst();
 }
 
 /* ===================================================================
@@ -468,6 +624,78 @@ function openCheerModal() {
   $("cheerCount").textContent = "0";
   $("cheerModal").hidden = false;
   $("cheerInput").focus();
+  loadClassStats();
+}
+
+/* ===================================================================
+   교사용 — 오늘의 우리 반 (익명 통계)
+
+   ※ 이 화면을 학생 화면이 아니라 학부모/교사 버튼(🧒) 안에 둔 이유:
+     PRD 2장이 "타인과의 비교나 랭킹 등 소셜 기능 완전 배제"라고
+     못박고 있습니다. 학생 화면에 "6명이 4칸 완료" 같은 걸 띄우면
+     랭킹은 아니어도 비교가 됩니다. 교사 전용 화면에 두면
+     교사는 반 분위기를 알 수 있고 학생은 자기 성장에만 집중합니다.
+   =================================================================== */
+
+async function loadClassStats() {
+  const body = $("classBody");
+  body.innerHTML = `<div class="class-loading">불러오는 중...</div>`;
+
+  let rows;
+  try {
+    rows = await fetchDayStats(todayKey());
+  } catch (e) {
+    console.warn("통계를 불러오지 못했어요:", e);
+    body.innerHTML = `<div class="class-loading">통계를 불러오지 못했어요</div>`;
+    return;
+  }
+
+  if (!rows.length) {
+    body.innerHTML =
+      `<div class="class-loading">아직 오늘 미션을 시작한 학생이 없어요</div>`;
+    return;
+  }
+
+  const n = rows.length;
+  const total = rows.reduce((s, r) => s + r.count, 0);
+  const avg = (total / n).toFixed(1);
+  const perfect = rows.filter((r) => r.count === 4).length;
+
+  // 0~4칸 각각 몇 명인지
+  const dist = [0, 0, 0, 0, 0];
+  for (const r of rows) dist[Math.min(Math.max(r.count, 0), 4)]++;
+
+  const bars = dist.map((cnt, i) => {
+    const pct = Math.round((cnt / n) * 100);
+    return `
+      <div class="dist-row">
+        <span class="dist-label">${i}칸</span>
+        <div class="dist-track">
+          <div class="dist-fill" style="width:${pct}%;background:${THEME_COLORS[i]}"></div>
+        </div>
+        <span class="dist-count">${cnt}명</span>
+      </div>`;
+  }).join("");
+
+  body.innerHTML = `
+    <div class="class-cards">
+      <div class="class-card">
+        <div class="class-num">${n}</div>
+        <div class="class-cap">시작한 학생</div>
+      </div>
+      <div class="class-card">
+        <div class="class-num">${avg}</div>
+        <div class="class-cap">평균 (4칸 만점)</div>
+      </div>
+      <div class="class-card">
+        <div class="class-num">${perfect}</div>
+        <div class="class-cap">🎉 완벽 달성</div>
+      </div>
+    </div>
+    <div class="dist">${bars}</div>
+    <p class="class-note">
+      개인은 표시되지 않아요. 이름도 별명도 저장하지 않습니다.
+    </p>`;
 }
 
 async function submitCheer() {
@@ -537,7 +765,7 @@ let chart = null;
 let ChartLib = null;
 
 async function openStats() {
-  const hearts = totalHearts();
+  const hearts = monthHearts();
   const dragon = dragonOf(hearts);
 
   $("statsEmoji").textContent = dragon.emoji;
@@ -684,6 +912,7 @@ $("nextMonth").onclick = () => {
 $("missionClose").onclick = closeMission;
 $("charCard").onclick = openStats;
 $("statsClose").onclick = () => { $("statsModal").hidden = true; };
+$("levelClose").onclick = () => { $("levelModal").hidden = true; };
 $("cheerBtn").onclick = openCheerModal;
 $("cheerCancel").onclick = () => { $("cheerModal").hidden = true; };
 $("cheerSubmit").onclick = submitCheer;
@@ -693,6 +922,8 @@ $("cheerInput").addEventListener("input", (e) => {
 });
 
 // 어두운 배경을 누르면 닫기
+// (레벨업 팝업은 일부러 뺐습니다. 진화는 이 앱에서 제일 중요한 순간이라
+//  실수로 배경을 눌러 지나치지 않도록 버튼으로만 닫게 합니다.)
 for (const id of ["missionModal", "cheerModal", "statsModal"]) {
   $(id).addEventListener("click", (e) => {
     if (e.target !== e.currentTarget) return;   // 내용물 클릭은 무시
@@ -701,10 +932,11 @@ for (const id of ["missionModal", "cheerModal", "statsModal"]) {
   });
 }
 
-// ESC로 닫기
+// ESC로 닫기 — 위에 뜬 것부터
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (!$("cheerModal").hidden) $("cheerModal").hidden = true;
+  if (!$("levelModal").hidden) $("levelModal").hidden = true;
+  else if (!$("cheerModal").hidden) $("cheerModal").hidden = true;
   else if (!$("statsModal").hidden) $("statsModal").hidden = true;
   else if (!$("missionModal").hidden) closeMission();
 });
@@ -713,7 +945,23 @@ document.addEventListener("keydown", (e) => {
    시작!
    =================================================================== */
 
+shownMonth = thisMonth();
+shownLevel = dragonOf(monthHearts()).level;   // 켤 때의 레벨을 잡아둠
+
 renderCalendar();
 renderCharacter();
 resetTheme();
 loadCheers();     // Firebase 설정 전이면 조용히 아무것도 안 함
+
+// 앱을 켜둔 채 자정을 넘겨 날짜/달이 바뀌는 경우.
+// 화면으로 돌아올 때 다시 그려주지 않으면 어제 날짜를 오늘로 알고 있게 됩니다.
+let lastSeenDay = todayKey();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (todayKey() === lastSeenDay) return;
+  lastSeenDay = todayKey();
+  renderCalendar();
+  renderCharacter();
+  resetTheme();
+  if (openKey) renderMissionList();   // 어제 열어둔 모달이 있으면 잠금 상태를 갱신
+});

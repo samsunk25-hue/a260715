@@ -66,6 +66,50 @@ export async function addCheer(dateKey, message) {
 }
 
 /* -------------------------------------------------------------------
+   ④-2 익명 진도 보고 (교사용 통계)
+
+   ★ 이름도 별명도 올리지 않습니다 ★
+     올라가는 건 { 날짜, 몇 칸 했는지 } 뿐이고, 문서를 구분하기 위한
+     기기 ID는 앱이 처음 켜질 때 만든 난수입니다. 사람과 연결되는
+     정보가 아예 없어서, 데이터를 다 내려받아도 누가 누구인지
+     알아낼 방법이 없습니다.
+
+   문서 ID를 "날짜__기기ID"로 고정한 이유:
+     setDoc이 같은 ID에 덮어쓰기 때문에, 학생이 하루에 체크를 몇 번
+     바꾸든 그 학생의 오늘 기록은 항상 한 줄로 유지됩니다.
+     (응원과 정반대입니다. 응원은 쌓여야 해서 addDoc을 썼습니다.)
+   ------------------------------------------------------------------- */
+export async function reportProgress(dateKey, deviceId, count) {
+  const conn = await connect();
+  if (!conn) return;
+
+  const { db, fs } = conn;
+  await fs.setDoc(fs.doc(db, "stats", `${dateKey}__${deviceId}`), {
+    date: dateKey,
+    count,                              // 0~4
+    updatedAt: fs.serverTimestamp(),
+  });
+}
+
+/** 그날 반 전체 진도 — [{ count }, ...] */
+export async function fetchDayStats(dateKey) {
+  const conn = await connect();
+  if (!conn) return [];
+
+  const { db, fs } = conn;
+  const snap = await fs.getDocs(
+    fs.query(fs.collection(db, "stats"), fs.where("date", "==", dateKey))
+  );
+
+  const rows = [];
+  snap.forEach((d) => {
+    const v = d.data();
+    if (typeof v.count === "number") rows.push({ count: v.count });
+  });
+  return rows;
+}
+
+/* -------------------------------------------------------------------
    ④ 응원 읽기 — 한 달치를 한 번에
 
       날짜를 필드로 뒀기 때문에 범위 쿼리 하나로 그 달 전체가 들어옵니다.

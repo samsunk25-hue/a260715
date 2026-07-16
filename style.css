@@ -298,6 +298,20 @@ body {
 }
 .cheer-loading { text-align: center; font-size: 12px; color: var(--ink-soft); padding: 14px; }
 
+/* ---------- 오늘이 아닌 날 안내 ---------- */
+.lock-note {
+  background: #F8FAFC;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.lock-note[hidden] { display: none; }
+
 /* ---------- 미션 리스트 ---------- */
 .mission-list { display: flex; flex-direction: column; gap: 9px; }
 .mission-item {
@@ -359,6 +373,11 @@ body {
 }
 .custom-input::placeholder { color: #94A3B8; font-weight: 500; }
 .mission-item.done .custom-input { color: var(--theme); }
+/* 잠긴 미션 (오늘이 아닌 날) */
+.mission-item.locked { cursor: default; opacity: 0.72; background: #FAFAFA; }
+.mission-item.locked .checkmark { cursor: not-allowed; }
+.mission-item.locked .custom-input { cursor: default; }
+
 /* 내용이 비어 있으면 체크 못 하도록 흐리게 */
 .checkmark.locked { opacity: 0.4; cursor: not-allowed; }
 #customMark { cursor: pointer; }
@@ -489,6 +508,137 @@ body {
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-ghost:active, .btn-primary:active { transform: scale(0.97); }
 
+/* ---------- 교사용: 오늘의 우리 반 (익명 통계) ---------- */
+.class-stats {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+}
+.class-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+.class-loading {
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 18px 0;
+}
+
+.class-cards { display: flex; gap: 8px; margin-bottom: 14px; }
+.class-card {
+  flex: 1;
+  background: #F8FAFC;
+  border-radius: 12px;
+  padding: 11px 6px;
+  text-align: center;
+}
+.class-num { font-size: 22px; font-weight: 800; color: #EC4899; line-height: 1.1; }
+.class-cap { font-size: 10px; color: var(--ink-soft); margin-top: 3px; }
+
+.dist { display: flex; flex-direction: column; gap: 5px; }
+.dist-row { display: flex; align-items: center; gap: 8px; }
+.dist-label {
+  width: 26px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+.dist-track {
+  flex: 1;
+  height: 14px;
+  background: #F1F5F9;
+  border-radius: 7px;
+  overflow: hidden;
+}
+.dist-fill {
+  height: 100%;
+  border-radius: 7px;
+  min-width: 2px;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dist-count {
+  width: 32px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.class-note {
+  font-size: 10px;
+  color: #94A3B8;
+  text-align: center;
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+/* ---------- 진화 축하 팝업 ---------- */
+.level-backdrop { background: rgba(15, 23, 42, 0.62); }
+
+.level-card {
+  margin: auto;
+  width: min(360px, calc(100vw - 44px));
+  background: var(--card);
+  border-radius: 26px;
+  padding: 28px 24px 24px;
+  text-align: center;
+  animation: levelPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes levelPop {
+  0%   { transform: scale(0.5) rotate(-8deg); opacity: 0; }
+  60%  { transform: scale(1.06) rotate(2deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+.level-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #FBBF24, #F59E0B);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+
+.level-emoji-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.level-old { font-size: 34px; opacity: 0.35; filter: grayscale(1); }
+.level-arrow { font-size: 18px; color: var(--ink-soft); }
+.level-emoji {
+  font-size: 76px;
+  display: inline-block;
+  animation: levelBounce 1.1s ease-in-out infinite;
+}
+@keyframes levelBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-9px) scale(1.06); }
+}
+
+.level-head { font-size: 23px; font-weight: 800; margin-bottom: 6px; }
+.level-head #levelLv { color: #F59E0B; }
+.level-bubble {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+.level-hearts {
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: #F8FAFC;
+  border-radius: 10px;
+  padding: 8px;
+}
+.level-card .btn-close {
+  background: linear-gradient(135deg, #FBBF24, #F59E0B);
+  margin-top: 18px;
+}
+
 /* ---------- 화면 4: 성장 그래프 ---------- */
 .stats-dialog { text-align: center; }
 .stats-emoji {
@@ -502,6 +652,14 @@ body {
 .stats-hearts { font-size: 13px; color: var(--ink-soft); margin-bottom: 18px; }
 .chart-box { height: 190px; margin-bottom: 14px; }
 .stats-msg { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.stats-reset {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 8px;
+  background: #F8FAFC;
+  border-radius: 10px;
+  padding: 7px;
+}
 
 /* 화면이 아주 작은 기기 대응 */
 @media (max-width: 360px) {
