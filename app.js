@@ -1182,13 +1182,24 @@ let pendingRole = "student";
 function startJoin(role) {
   pendingRole = role;
   $("gateInput").value = "";
-  $("gateNick").value = myNick || "";
   $("gateError").hidden = true;
-  // 별명 입력은 학생만
-  $("gateNick").hidden = role !== "student";
-  $("gateJoinDesc").innerHTML = role === "parent"
-    ? "자녀 반의 <b>반 코드</b>를 입력해 주세요.<br>따뜻한 응원을 남길 수 있어요."
-    : "선생님께 받은 <b>반 코드</b>와<br>사용할 <b>별명</b>을 적어주세요.";
+
+  const nick = $("gateNick");
+  nick.hidden = role !== "student";     // 별명 입력은 학생만
+  nick.value = myNick || "";
+
+  // ★ 별명은 한 번 정하면 못 바꿉니다 ★
+  //   이미 별명이 있으면 입력칸을 잠그고 안내를 바꿉니다.
+  const locked = role === "student" && !!myNick;
+  nick.readOnly = locked;
+  nick.classList.toggle("locked", locked);
+
+  $("gateJoinDesc").innerHTML =
+    role === "parent"
+      ? "자녀 반의 <b>반 코드</b>를 입력해 주세요.<br>따뜻한 응원을 남길 수 있어요."
+      : locked
+        ? `반 코드를 입력하면 <b>${escapeHtml(myNick)}</b>(으)로 입장해요.<br>별명은 바꿀 수 없어요.`
+        : "선생님께 받은 <b>반 코드</b>와<br>사용할 <b>별명</b>을 적어주세요.";
   showGate("join");
 }
 
@@ -1230,7 +1241,8 @@ async function joinClass() {
     // 반 이름을 못 가져와도 입장은 됩니다 (이름은 표시용일 뿐)
     setClass(code, myClass?.name);
     setRole(pendingRole);
-    if (pendingRole === "student") setNick($("gateNick").value);
+    // 별명은 학생이 처음 정할 때만 저장. 이미 있으면 그대로 둡니다(변경 불가).
+    if (pendingRole === "student" && !myNick) setNick($("gateNick").value);
     hideGate();
     await enterApp();
   } catch (e) {
@@ -1410,16 +1422,26 @@ $("gateAddClass").onclick = addExistingClass;
 $("gateCreateBack").onclick = () => showGate("teacher");
 $("gateCreateBtn").onclick = createNewClass;
 $("gateDoneBtn").onclick = () => showGate("teacher");
-$("tsClose").onclick = () => { $("teacherStatsModal").hidden = true; };
+// 통계 팝업 닫기 = 반 목록으로 돌아가기
+function backToTeacherList() {
+  $("teacherStatsModal").hidden = true;
+  showGate("teacher");
+}
+$("tsClose").onclick = backToTeacherList;
 $("teacherStatsModal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) $("teacherStatsModal").hidden = true;
+  if (e.target === e.currentTarget) backToTeacherList();
 });
 
 // 홈 버튼 → 처음(역할 선택) 화면으로
 $("homeBtn").onclick = () => showGate("role");
 
-// 반 칩을 누르면 역할 선택으로 (반·역할 바꾸기)
-$("classChip").onclick = () => showGate("role");
+// 반 칩을 누르면:
+//   교사는 자기 반 목록으로 (여러 반을 오가기 편하게)
+//   학생·학부모는 역할 선택으로
+$("classChip").onclick = () => {
+  if (myRole === "teacher") showGate("teacher");
+  else showGate("role");
+};
 
 $("prevMonth").onclick = () => {
   viewMonth--;
