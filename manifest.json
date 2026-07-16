@@ -1,0 +1,25 @@
+{
+  "name": "스터디 드래곤 - 나만의 학습 탐험일지",
+  "short_name": "스터디 드래곤",
+  "description": "매일 미션을 완료하고 나만의 드래곤을 5단계로 진화시키는 학습 앱",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF1F2",
+  "theme_color": "#F43F5E",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
