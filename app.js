@@ -489,7 +489,24 @@ async function submitCheer() {
     alert("응원을 띄웠어요! 🚀\n오늘 접속하는 모든 학생에게 보입니다.");
   } catch (e) {
     console.error(e);
-    alert("전송에 실패했어요 😢\n인터넷 연결과 Firebase 설정을 확인해 주세요.");
+
+    // 무슨 일인지 알려주지 않으면 고칠 수가 없으니 원인을 그대로 보여줍니다
+    const code = e?.code ?? "unknown";
+    let hint = "";
+    if (code === "permission-denied") {
+      hint =
+        "\n\n[원인] Firestore 보안 규칙이 쓰기를 막고 있어요." +
+        "\n규칙 페이지에서 allow create 규칙을 붙여넣고" +
+        "\n[게시] 버튼까지 눌렀는지 확인해 주세요.";
+    } else if (code === "unavailable" || code === "failed-precondition") {
+      hint =
+        "\n\n[원인] 데이터베이스에 연결하지 못했어요." +
+        "\nFirestore Database가 실제로 만들어졌는지 확인해 주세요.";
+    } else if (code === "not-found") {
+      hint = "\n\n[원인] Firestore 데이터베이스가 없습니다.";
+    }
+
+    alert(`전송에 실패했어요 😢\n\n오류 코드: ${code}\n${e?.message ?? ""}${hint}`);
   } finally {
     btn.disabled = false;
     btn.textContent = "메시지 띄우기 🚀";

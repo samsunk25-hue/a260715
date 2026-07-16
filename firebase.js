@@ -14,12 +14,12 @@
       프로젝트 설정 → 내 앱 → 웹 앱(</>) → firebaseConfig
    ------------------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE.appspot.com",
-  messagingSenderId: "PASTE",
-  appId: "PASTE",
+  apiKey: "AIzaSyD4Jfp0sFJ6N6S8E3OnwrLCDzQElg1ozl8",
+  authDomain: "study-dragon.firebaseapp.com",
+  projectId: "study-dragon",
+  storageBucket: "study-dragon.firebasestorage.app",
+  messagingSenderId: "767816970944",
+  appId: "1:767816970944:web:0cd02989fa106e771af325",
 };
 
 /** 설정을 아직 안 붙여넣었는지 검사 */
