@@ -20,14 +20,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 응원 메시지 — 이 앱이 쓰는 유일한 컬렉션
-    match /cheers/{id} {
+    // 반 — 코드로 존재를 확인하고, 학생이 오탈자를 알아채게 합니다.
+    //   개인정보 없음: 반 이름과 만든 시각뿐입니다.
+    match /classes/{code} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() < 30
+                    && request.resource.data.keys().hasOnly(['name', 'createdAt']);
+      allow update, delete: if false;   // 한 번 만든 반은 못 바꾸고 못 지움
+    }
 
-      // 누구나 읽기 (로그인이 없는 앱이라 모든 학생이 봐야 함)
+    // 응원 메시지
+    //   cm = "반코드|년월". 반별 조회 열쇠입니다. 문자열이어야 합니다.
+    match /cheers/{id} {
       allow read: if true;
 
-      // 만들기: 메시지는 1~199자 문자열이어야 함
-      allow create: if request.resource.data.message is string
+      allow create: if request.resource.data.cm is string
+                    && request.resource.data.message is string
                     && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() < 200;
 
@@ -38,15 +48,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // 선생님 지정 과제 — 교사가 🧒 화면에서 편집
-    //
-    //   문서 ID = 날짜, list = 과제 3개. 정확히 3개일 때만 허용합니다.
-    //   개수가 흔들리면 학생 화면의 하트 칸 수 계산(3+자율1=4)이 깨집니다.
-    //   과거 과제를 함부로 못 지우도록 delete는 막습니다.
-    match /tasks/{date} {
+    // 선생님 지정 과제 — 교사가 편집
+    //   list = 과제 3개. 정확히 3개일 때만 허용(하트 칸 수 계산 보호).
+    //   cm = "반코드|년월" 반별 조회 열쇠.
+    match /tasks/{id} {
       allow read: if true;
 
-      allow write: if request.resource.data.list is list
+      allow write: if request.resource.data.cm is string
+                   && request.resource.data.list is list
                    && request.resource.data.list.size() == 3
                    && request.resource.data.list[0] is string
                    && request.resource.data.list[1] is string
@@ -58,7 +67,7 @@ service cloud.firestore {
                    && request.resource.data.list[2].size() > 0
                    && request.resource.data.list[2].size() < 40
                    && request.resource.data.date is string
-                   && request.resource.data.keys().hasOnly(['date', 'list', 'updatedAt']);
+                   && request.resource.data.keys().hasOnly(['cm', 'date', 'list', 'updatedAt']);
 
       allow delete: if false;
     }
@@ -66,27 +75,26 @@ service cloud.firestore {
     // 익명 진도 통계 — 교사가 반 분위기를 보기 위한 것
     //
     // ★ 여기에 개인정보가 들어가면 안 됩니다 ★
-    //   저장되는 건 { date, count, updatedAt } 뿐입니다.
+    //   저장되는 건 { cd, date, count, updatedAt } 뿐입니다.
     //   이름도 별명도 없고, 문서 ID의 기기 구분자는 앱이 만든 난수라
-    //   사람과 연결되지 않습니다. 규칙에서 필드를 아래처럼 제한해
+    //   사람과 연결되지 않습니다. hasOnly로 필드를 잠가
     //   나중에 실수로 이름 같은 걸 끼워 넣는 것도 막습니다.
+    //   cd = "반코드|날짜" 반별 조회 열쇠.
     match /stats/{id} {
       allow read: if true;
 
-      allow write: if request.resource.data.count is int
+      allow write: if request.resource.data.cd is string
+                   && request.resource.data.count is int
                    && request.resource.data.count >= 0
                    && request.resource.data.count <= 4
                    && request.resource.data.date is string
                    && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-                   // 허용된 3개 필드 외에는 아무것도 못 넣게 잠금
-                   && request.resource.data.keys().hasOnly(['date', 'count', 'updatedAt']);
+                   && request.resource.data.keys().hasOnly(['cd', 'date', 'count', 'updatedAt']);
 
       allow delete: if false;
     }
 
-    // ※ cheers 외의 경로를 따로 막지 않은 이유
-    //   Firestore는 어떤 규칙에도 걸리지 않으면 "기본 거부"입니다.
-    //   따로 차단 블록을 쓰지 않아도 다른 컬렉션은 이미 막혀 있습니다.
+    // ※ 위 경로에 안 걸리는 다른 컬렉션은 Firestore 기본값(거부)으로 막힙니다.
   }
 }
 

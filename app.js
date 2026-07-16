@@ -6,6 +6,7 @@ import {
   isConfigured, addCheer, fetchCheersForMonth,
   reportProgress, fetchDayStats,
   saveTasks, fetchTasksForMonth,
+  classExists, createClass,
 } from "./firebase.js";
 import { clean } from "./badwords.js";
 
@@ -55,7 +56,11 @@ const DRAGONS = [
 
 const STORE_KEY = "studyDragon";
 const DEVICE_KEY = "studyDragonDevice";
+const CLASS_KEY = "studyDragonClass";     // { code, name }
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
+
+// 반 코드에 헷갈리는 글자(0/O, 1/I/L)는 빼서 오탈자를 줄입니다
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
 /* ===================================================================
    유틸
@@ -93,6 +98,36 @@ function deviceId() {
     try { localStorage.setItem(DEVICE_KEY, id); } catch {}
   }
   return id;
+}
+
+/* ===================================================================
+   반(class) — 어느 방에 속하는지
+
+   응원·과제·통계가 "같은 반 코드"끼리만 공유됩니다. 이름도 개인정보도
+   아니고 그냥 방 번호입니다. 기기에 저장해두고 매번 씁니다.
+   =================================================================== */
+
+let myClass = null;   // { code, name } 또는 null
+
+function loadClass() {
+  try { myClass = JSON.parse(localStorage.getItem(CLASS_KEY)) || null; } catch { myClass = null; }
+  return myClass;
+}
+
+function setClass(code, name) {
+  myClass = { code, name: name || "우리 반" };
+  try { localStorage.setItem(CLASS_KEY, JSON.stringify(myClass)); } catch {}
+}
+
+/** 헷갈리는 글자를 뺀 4자리 반 코드 생성 */
+function makeClassCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  return [...bytes].map((b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+}
+
+/** 입력 코드 정규화 — 대문자 + 영숫자만 남김 (공백·기호 제거) */
+function normalizeCode(raw) {
+  return String(raw).trim().toUpperCase().replace(/[^0-9A-Z]/g, "");
 }
 
 /* ===================================================================
@@ -537,11 +572,11 @@ let reportTimer = null;
  * 요청이 4번 나갑니다. 1.2초 모았다가 마지막 값만 보냅니다.
  */
 function sendProgress(key, count) {
-  if (!isConfigured() || !key) return;
+  if (!isConfigured() || !myClass || !key) return;
 
   clearTimeout(reportTimer);
   reportTimer = setTimeout(() => {
-    reportProgress(key, deviceId(), count).catch((e) => {
+    reportProgress(myClass.code, key, deviceId(), count).catch((e) => {
       // 통계는 부가 기능입니다. 실패해도 학생의 앱은 멀쩡해야 합니다.
       console.warn("진도 보고 실패:", e);
     });
@@ -628,12 +663,12 @@ function renderCheers(key) {
 
 /** 지금 보고 있는 달의 응원을 Firestore에서 가져옴 */
 async function loadCheers() {
-  if (!isConfigured()) return;
+  if (!isConfigured() || !myClass) return;
   try {
-    // 응원과 과제를 그 달치 한 번에 가져옵니다
+    // 응원과 과제를 그 달치 한 번에 가져옵니다 (내 반 것만)
     const [c, t] = await Promise.all([
-      fetchCheersForMonth(viewYear, viewMonth),
-      fetchTasksForMonth(viewYear, viewMonth),
+      fetchCheersForMonth(myClass.code, viewYear, viewMonth),
+      fetchTasksForMonth(myClass.code, viewYear, viewMonth),
     ]);
     cheers = c;
     // 다른 달로 넘어가도 과거 과제를 거슬러 볼 수 있게 누적해서 합칩니다
@@ -747,7 +782,7 @@ async function saveTeacherTasks() {
 
   try {
     const key = todayKey();          // 오늘부터 적용
-    await saveTasks(key, list);
+    await saveTasks(myClass.code, key, list);
 
     // 서버 왕복을 기다리지 않고 화면에 먼저 반영
     tasksByDate[key] = list;
@@ -783,7 +818,7 @@ async function loadClassStats() {
 
   let rows;
   try {
-    rows = await fetchDayStats(todayKey());
+    rows = await fetchDayStats(myClass.code, todayKey());
   } catch (e) {
     console.warn("통계를 불러오지 못했어요:", e);
     body.innerHTML = `<div class="class-loading">통계를 불러오지 못했어요</div>`;
@@ -862,7 +897,7 @@ async function submitCheer() {
 
   try {
     const key = todayKey();          // 응원은 언제나 "오늘" 날짜로 (PRD 기능 ③)
-    await addCheer(key, msg);
+    await addCheer(myClass.code, key, msg);
 
     // 서버 왕복을 기다리지 않고 화면에 먼저 반영
     (cheers[key] ||= []).push(msg);
@@ -1080,8 +1115,130 @@ function cleanDiary(key) {
 $("diaryText").addEventListener("blur", () => cleanDiary(openKey));
 
 /* ===================================================================
+   반 입장 게이트
+
+   반 코드가 없으면 전체 화면 게이트를 띄웁니다. Firebase 설정이 없으면
+   (혼자 로컬로 쓰는 경우) 게이트 없이 그냥 앱을 씁니다 — 공유가 아예
+   없으니 반을 나눌 이유도 없습니다.
+   =================================================================== */
+
+function showGate(section) {
+  $("gateJoin").hidden = section !== "join";
+  $("gateCreate").hidden = section !== "create";
+  $("gateDone").hidden = section !== "done";
+  $("gateModal").hidden = false;
+  if (section === "join") { $("gateError").hidden = true; $("gateInput").focus(); }
+}
+
+function hideGate() { $("gateModal").hidden = true; }
+
+function refreshClassChip() {
+  const chip = $("classChip");
+  if (myClass && isConfigured()) {
+    $("classChipName").textContent = myClass.name;
+    $("classChipCode").textContent = myClass.code;
+    chip.hidden = false;
+  } else {
+    chip.hidden = true;
+  }
+}
+
+async function joinClass() {
+  const code = normalizeCode($("gateInput").value);
+  const err = $("gateError");
+  if (code.length < 3) {
+    err.textContent = "반 코드를 정확히 입력해 주세요.";
+    err.hidden = false;
+    return;
+  }
+
+  const btn = $("gateJoinBtn");
+  btn.disabled = true;
+  btn.textContent = "확인 중...";
+  try {
+    if (!(await classExists(code))) {
+      err.textContent = "그런 반이 없어요. 코드를 다시 확인해 주세요.";
+      err.hidden = false;
+      return;
+    }
+    // 반 이름을 못 가져와도 입장은 됩니다 (이름은 표시용일 뿐)
+    setClass(code, myClass?.name);
+    hideGate();
+    await enterApp();
+  } catch (e) {
+    console.error(e);
+    err.textContent = "연결에 문제가 있어요. 인터넷을 확인해 주세요.";
+    err.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "반 입장하기 🚪";
+  }
+}
+
+async function createNewClass() {
+  const err = $("gateCreateError");
+  const name = $("gateClassName").value.trim() || "우리 반";
+
+  // 새 반 만들기는 교사 전용 → 비밀번호 확인
+  const entered = await sha256Hex($("gatePw").value);
+  if (entered !== TEACHER_PW_HASH) {
+    err.textContent = "선생님 비밀번호가 틀렸어요.";
+    err.hidden = false;
+    return;
+  }
+
+  const btn = $("gateCreateBtn");
+  btn.disabled = true;
+  btn.textContent = "만드는 중...";
+  try {
+    // 코드가 겹치지 않을 때까지 (거의 한 번에 됨)
+    let code = makeClassCode();
+    let guard = 0;
+    while (await classExists(code)) {
+      code = makeClassCode();
+      if (++guard > 5) break;
+    }
+    await createClass(code, name);
+    teacherUnlocked = true;          // 방금 비밀번호를 맞혔으니 과제 수정도 열어둠
+    setClass(code, name);
+
+    $("gateNewCode").textContent = code;
+    showGate("done");
+  } catch (e) {
+    console.error(e);
+    err.textContent = "반을 만들지 못했어요. 인터넷을 확인해 주세요.";
+    err.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "반 만들기 ✨";
+  }
+}
+
+/** 반이 정해진 뒤 앱을 그림 */
+async function enterApp() {
+  refreshClassChip();
+  renderCalendar();
+  renderCharacter();
+  resetTheme();
+  await loadCheers();
+}
+
+/* ===================================================================
    이벤트 연결
    =================================================================== */
+
+$("gateJoinBtn").onclick = joinClass;
+$("gateInput").addEventListener("keydown", (e) => { if (e.key === "Enter") joinClass(); });
+$("gateToCreate").onclick = () => showGate("create");
+$("gateToJoin").onclick = () => showGate("join");
+$("gateCreateBtn").onclick = createNewClass;
+$("gateStartBtn").onclick = async () => { hideGate(); await enterApp(); };
+
+// 반 칩을 누르면 반 바꾸기 (게이트 다시 열기)
+$("classChip").onclick = () => {
+  $("gateInput").value = "";
+  showGate("join");
+};
 
 $("prevMonth").onclick = () => {
   viewMonth--;
@@ -1145,10 +1302,23 @@ document.addEventListener("keydown", (e) => {
 shownMonth = thisMonth();
 shownLevel = dragonOf(monthHearts()).level;   // 켤 때의 레벨을 잡아둠
 
+// 캘린더·캐릭터는 반과 무관하게(내 기기 데이터) 먼저 그립니다
 renderCalendar();
 renderCharacter();
 resetTheme();
-loadCheers();     // Firebase 설정 전이면 조용히 아무것도 안 함
+
+loadClass();
+if (!isConfigured()) {
+  // Firebase 설정 전이면 공유가 없으니 반도 필요 없음. 그냥 앱 사용.
+  loadCheers();
+} else if (myClass) {
+  // 이미 반이 있으면 바로 입장
+  refreshClassChip();
+  loadCheers();
+} else {
+  // 반이 없으면 입장 게이트
+  showGate("join");
+}
 
 // 앱을 켜둔 채 자정을 넘겨 날짜/달이 바뀌는 경우.
 // 화면으로 돌아올 때 다시 그려주지 않으면 어제 날짜를 오늘로 알고 있게 됩니다.

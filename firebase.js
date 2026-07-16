@@ -49,17 +49,54 @@ async function connect() {
 }
 
 /* -------------------------------------------------------------------
+   ★ 반(class) 나누기 — 조회 열쇠 만들기 ★
+
+   여러 반이 한 앱을 쓰므로 데이터를 반별로 나눠야 합니다.
+   그런데 Firestore는 "범위 조건 + 다른 필드 조건"을 섞으면 복합 색인을
+   요구합니다. 예: where(class==반) + where(date 범위). 이걸 피하려고
+   "반코드|년월"을 한 필드(cm)로 합쳐 단일 등호 조회만 씁니다.
+   그러면 색인 문제가 아예 생기지 않습니다.
+   ------------------------------------------------------------------- */
+const ym = (dateKey) => dateKey.slice(0, 7);              // "2026-07-15" -> "2026-07"
+const cmKey = (code, dateKey) => `${code}|${ym(dateKey)}`; // 응원·과제 월단위 열쇠
+const cdKey = (code, dateKey) => `${code}|${dateKey}`;     // 통계 일단위 열쇠
+
+/* -------------------------------------------------------------------
+   반 만들기 / 확인
+     classes/{코드} 문서로 반의 존재를 확인합니다. 학생이 코드를
+     잘못 입력하면 "없는 반"이라고 알려줄 수 있습니다.
+   ------------------------------------------------------------------- */
+export async function classExists(code) {
+  const conn = await connect();
+  if (!conn) return false;
+  const { db, fs } = conn;
+  const snap = await fs.getDoc(fs.doc(db, "classes", code));
+  return snap.exists();
+}
+
+export async function createClass(code, name) {
+  const conn = await connect();
+  if (!conn) throw new Error("NOT_CONFIGURED");
+  const { db, fs } = conn;
+  await fs.setDoc(fs.doc(db, "classes", code), {
+    name: name || "우리 반",
+    createdAt: fs.serverTimestamp(),
+  });
+}
+
+/* -------------------------------------------------------------------
    ③ 응원 쓰기 — addDoc (setDoc이 아님!)
       setDoc은 같은 날 앞사람 메시지를 덮어써서 지워버립니다.
       addDoc은 새 문서를 추가하므로 여러 개가 쌓입니다.
    ------------------------------------------------------------------- */
-export async function addCheer(dateKey, message) {
+export async function addCheer(code, dateKey, message) {
   const conn = await connect();
   if (!conn) throw new Error("NOT_CONFIGURED");
 
   const { db, fs } = conn;
   await fs.addDoc(fs.collection(db, "cheers"), {
-    date: dateKey,                     // "2026-07-15" — 문서 ID가 아니라 필드!
+    cm: cmKey(code, dateKey),           // "7A3K|2026-07" — 반별 월 조회 열쇠
+    date: dateKey,                      // "2026-07-15"
     message: message.trim(),
     createdAt: fs.serverTimestamp(),
   });
@@ -75,35 +112,32 @@ export async function addCheer(dateKey, message) {
    과제는 항상 정확히 3개입니다. 이 개수가 흔들리면 하트 계산(3+자율1=4칸)이
    깨지므로, 앱에서 3개를 모두 채웠을 때만 저장합니다.
    ------------------------------------------------------------------- */
-export async function saveTasks(dateKey, list) {
+export async function saveTasks(code, dateKey, list) {
   const conn = await connect();
   if (!conn) throw new Error("NOT_CONFIGURED");
 
   const { db, fs } = conn;
-  await fs.setDoc(fs.doc(db, "tasks", dateKey), {
+  // 문서 ID에 반코드를 붙입니다. 안 그러면 다른 반이 같은 날짜에 과제를
+  // 저장할 때 문서 ID(날짜)가 겹쳐 서로 덮어씁니다.
+  await fs.setDoc(fs.doc(db, "tasks", `${code}__${dateKey}`), {
+    cm: cmKey(code, dateKey),
     date: dateKey,
     list,                                // ["독서 30분", "수학...", "영어..."]
     updatedAt: fs.serverTimestamp(),
   });
 }
 
-/** 그 달의 과제 설정 — { "2026-07-01": ["...","...","..."], ... } */
-export async function fetchTasksForMonth(year, month /* 1~12 */) {
+/** 그 반, 그 달의 과제 설정 — { "2026-07-01": ["...","...","..."], ... } */
+export async function fetchTasksForMonth(code, year, month /* 1~12 */) {
   const conn = await connect();
   if (!conn) return {};
 
   const { db, fs } = conn;
   const pad = (n) => String(n).padStart(2, "0");
-  const last = new Date(year, month, 0).getDate();
-  const from = `${year}-${pad(month)}-01`;
-  const to = `${year}-${pad(month)}-${pad(last)}`;
+  const cm = `${code}|${year}-${pad(month)}`;
 
   const snap = await fs.getDocs(
-    fs.query(
-      fs.collection(db, "tasks"),
-      fs.where("date", ">=", from),
-      fs.where("date", "<=", to)
-    )
+    fs.query(fs.collection(db, "tasks"), fs.where("cm", "==", cm))
   );
 
   const byDate = {};
@@ -128,26 +162,27 @@ export async function fetchTasksForMonth(year, month /* 1~12 */) {
      바꾸든 그 학생의 오늘 기록은 항상 한 줄로 유지됩니다.
      (응원과 정반대입니다. 응원은 쌓여야 해서 addDoc을 썼습니다.)
    ------------------------------------------------------------------- */
-export async function reportProgress(dateKey, deviceId, count) {
+export async function reportProgress(code, dateKey, deviceId, count) {
   const conn = await connect();
   if (!conn) return;
 
   const { db, fs } = conn;
-  await fs.setDoc(fs.doc(db, "stats", `${dateKey}__${deviceId}`), {
+  await fs.setDoc(fs.doc(db, "stats", `${code}__${dateKey}__${deviceId}`), {
+    cd: cdKey(code, dateKey),           // "7A3K|2026-07-16" — 반별 일 조회 열쇠
     date: dateKey,
     count,                              // 0~4
     updatedAt: fs.serverTimestamp(),
   });
 }
 
-/** 그날 반 전체 진도 — [{ count }, ...] */
-export async function fetchDayStats(dateKey) {
+/** 그 반, 그날 전체 진도 — [{ count }, ...] */
+export async function fetchDayStats(code, dateKey) {
   const conn = await connect();
   if (!conn) return [];
 
   const { db, fs } = conn;
   const snap = await fs.getDocs(
-    fs.query(fs.collection(db, "stats"), fs.where("date", "==", dateKey))
+    fs.query(fs.collection(db, "stats"), fs.where("cd", "==", cdKey(code, dateKey)))
   );
 
   const rows = [];
@@ -166,26 +201,18 @@ export async function fetchDayStats(dateKey) {
 
       반환값: { "2026-07-15": ["메시지1", "메시지2"], ... }
    ------------------------------------------------------------------- */
-export async function fetchCheersForMonth(year, month /* 1~12 */) {
+export async function fetchCheersForMonth(code, year, month /* 1~12 */) {
   const conn = await connect();
   if (!conn) return {};
 
   const { db, fs } = conn;
   const pad = (n) => String(n).padStart(2, "0");
-  const last = new Date(year, month, 0).getDate();     // 그 달의 마지막 날
-  const from = `${year}-${pad(month)}-01`;
-  const to = `${year}-${pad(month)}-${pad(last)}`;
+  const cm = `${code}|${year}-${pad(month)}`;
 
-  // ※ orderBy를 쓰지 않는 이유:
-  //   where(date) + orderBy(createdAt)처럼 서로 다른 필드를 섞으면
-  //   Firestore가 "복합 색인을 만들라"며 에러를 냅니다.
-  //   아래에서 JS로 정렬하면 그 문제 자체가 없습니다.
+  // cm(반코드|년월) 한 필드로만 조회 → 복합 색인이 필요 없습니다.
+  // 정렬은 아래에서 JS로 합니다.
   const snap = await fs.getDocs(
-    fs.query(
-      fs.collection(db, "cheers"),
-      fs.where("date", ">=", from),
-      fs.where("date", "<=", to)
-    )
+    fs.query(fs.collection(db, "cheers"), fs.where("cm", "==", cm))
   );
 
   const rows = [];

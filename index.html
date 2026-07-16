@@ -45,6 +45,13 @@
       <button id="nextMonth" class="nav-btn" aria-label="다음 달">›</button>
     </header>
 
+    <!-- 현재 반 표시 (누르면 반 바꾸기) -->
+    <button id="classChip" class="class-chip" hidden>
+      <span class="class-chip-dot">🏫</span>
+      <span id="classChipName">우리 반</span>
+      <span class="class-chip-code" id="classChipCode">7A3K</span>
+    </button>
+
     <!-- 우측 상단 플로팅 버튼 2개 -->
     <div class="fab-group">
       <!-- 응원: 학부모·교사 누구나 (비밀번호 없음) -->
@@ -232,6 +239,42 @@
         <div id="dexBody" class="dex-body"></div>
       </section>
       <button id="statsClose" class="btn-close">닫기</button>
+    </div>
+  </div>
+
+  <!-- ===== 반 입장 게이트 (반 코드가 없을 때 전체 화면으로 뜸) ===== -->
+  <div id="gateModal" class="gate" hidden>
+    <div class="gate-card">
+      <div class="gate-emoji">🐉</div>
+      <h2 class="gate-title">스터디 드래곤</h2>
+
+      <!-- 학생: 반 코드 입력 -->
+      <section id="gateJoin">
+        <p class="gate-desc">선생님께 받은 <b>반 코드</b>를 입력해 주세요.</p>
+        <input type="text" id="gateInput" class="gate-input" maxlength="4"
+               placeholder="예: 7A3K" autocomplete="off" autocapitalize="characters" />
+        <div class="gate-error" id="gateError" hidden></div>
+        <button id="gateJoinBtn" class="btn-primary gate-btn">반 입장하기 🚪</button>
+        <button id="gateToCreate" class="gate-link">선생님이신가요? 새 반 만들기</button>
+      </section>
+
+      <!-- 교사: 새 반 만들기 (비밀번호 필요) -->
+      <section id="gateCreate" hidden>
+        <p class="gate-desc">새 반을 만들면 <b>반 코드</b>가 나와요.<br />학생들에게 그 코드를 알려주세요.</p>
+        <input type="text" id="gateClassName" class="gate-input" maxlength="20"
+               placeholder="반 이름 (예: 3학년 2반)" autocomplete="off" />
+        <input type="password" id="gatePw" class="gate-input" placeholder="선생님 비밀번호" autocomplete="off" />
+        <div class="gate-error" id="gateCreateError" hidden></div>
+        <button id="gateCreateBtn" class="btn-primary gate-btn">반 만들기 ✨</button>
+        <button id="gateToJoin" class="gate-link">← 반 코드로 입장하기</button>
+      </section>
+
+      <!-- 반 생성 완료: 코드 안내 -->
+      <section id="gateDone" hidden>
+        <p class="gate-desc">반이 만들어졌어요! 🎉<br />이 코드를 학생들에게 알려주세요.</p>
+        <div class="gate-code" id="gateNewCode">7A3K</div>
+        <button id="gateStartBtn" class="btn-primary gate-btn">시작하기 🚀</button>
+      </section>
     </div>
   </div>
 
