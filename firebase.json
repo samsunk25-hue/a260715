@@ -11,10 +11,12 @@
       ".claude/**",
 
       "**/node_modules/**",
+      "scripts/**",
       "**/*.ps1",
       "**/*.docx",
       "**/*.md",
-      "**/*.txt"
+      "**/*.txt",
+      "**/*.mjs"
     ],
     "headers": [
       {

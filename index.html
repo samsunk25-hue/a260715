@@ -45,8 +45,19 @@
       <button id="nextMonth" class="nav-btn" aria-label="다음 달">›</button>
     </header>
 
-    <!-- 우측 상단 플로팅 버튼: 학부모/교사 응원 작성 -->
-    <button id="cheerBtn" class="cheer-fab" aria-label="전체 응원 남기기">🧒</button>
+    <!-- 우측 상단 플로팅 버튼 2개 -->
+    <div class="fab-group">
+      <!-- 응원: 학부모·교사 누구나 (비밀번호 없음) -->
+      <button id="cheerBtn" class="fab" aria-label="전체 응원 남기기">
+        <span class="fab-icon">💬</span>
+        <span class="fab-label">응원</span>
+      </button>
+      <!-- 과제 수정: 교사 전용 (비밀번호 필요) -->
+      <button id="taskBtn" class="fab fab-lock" aria-label="과제 수정 (교사용)">
+        <span class="fab-icon">📚</span>
+        <span class="fab-label">과제 🔒</span>
+      </button>
+    </div>
 
     <main class="calendar-wrap">
       <div class="weekdays">
@@ -140,23 +151,46 @@
         <button id="cheerSubmit" class="btn-primary">메시지 띄우기 🚀</button>
       </div>
 
-      <!-- 오늘의 과제 정하기 (교사 전용) -->
-      <section class="task-edit" id="taskEdit">
-        <h3 class="task-title">📚 오늘의 과제 정하기</h3>
-        <p class="task-desc">여기서 정한 과제가 오늘 모든 학생의 미션에 나타나요.</p>
-        <input type="text" class="task-input" id="taskInput0" maxlength="30" placeholder="과제 1" />
-        <input type="text" class="task-input" id="taskInput1" maxlength="30" placeholder="과제 2" />
-        <input type="text" class="task-input" id="taskInput2" maxlength="30" placeholder="과제 3" />
-        <button id="taskSave" class="btn-primary task-save">과제 저장하기 📌</button>
-        <span class="task-saved" id="taskSaved"></span>
-      </section>
-
       <!-- 오늘의 우리 반 (익명 통계)
            학생 개인을 특정하지 않습니다. 이름도 별명도 저장하지 않아요. -->
       <section class="class-stats" id="classStats">
         <h3 class="class-title">📊 오늘의 우리 반</h3>
         <div id="classBody" class="class-body">
           <div class="class-loading">불러오는 중...</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== 과제 수정 모달 (교사 전용, 비밀번호 필요) ===== -->
+  <div id="taskModal" class="modal-backdrop" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <h2 id="taskModalTitle" class="dialog-title">📚 과제 수정</h2>
+
+      <!-- 잠금 화면: 비밀번호 확인 전 -->
+      <section id="taskLock" class="task-lock">
+        <p class="dialog-desc">
+          과제 수정은 <b>선생님용 기능</b>이에요.<br />비밀번호를 입력해 주세요.
+        </p>
+        <input type="password" id="taskPw" class="cheer-input pw-input"
+               placeholder="비밀번호" autocomplete="off" />
+        <div class="pw-error" id="pwError" hidden>비밀번호가 틀렸어요 😢</div>
+        <div class="dialog-btns">
+          <button id="taskLockCancel" class="btn-ghost">취소</button>
+          <button id="taskUnlock" class="btn-primary">확인 🔓</button>
+        </div>
+      </section>
+
+      <!-- 편집 화면: 비밀번호 확인 후 -->
+      <section id="taskPanel" class="task-panel" hidden>
+        <p class="task-desc">여기서 정한 과제가 <b>오늘부터</b> 모든 학생의 미션에 나타나요.</p>
+        <input type="text" class="task-input" id="taskInput0" maxlength="30" placeholder="과제 1" />
+        <input type="text" class="task-input" id="taskInput1" maxlength="30" placeholder="과제 2" />
+        <input type="text" class="task-input" id="taskInput2" maxlength="30" placeholder="과제 3" />
+        <span class="task-saved" id="taskSaved"></span>
+        <div class="dialog-btns">
+          <button id="taskCancel" class="btn-ghost">닫기</button>
+          <button id="taskSave" class="btn-primary">과제 저장 📌</button>
         </div>
       </section>
     </div>

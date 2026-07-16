@@ -61,21 +61,32 @@ body {
 }
 .nav-btn:active { transform: scale(0.9); }
 
-/* ---------- 응원 작성 플로팅 버튼 ---------- */
-.cheer-fab {
+/* ---------- 우측 상단 플로팅 버튼 2개 (응원 / 과제) ---------- */
+.fab-group {
   position: fixed;
-  top: 18px;
-  right: max(18px, calc(50vw - 240px + 18px));  /* 480px 컨테이너 우측에 붙임 */
-  width: 46px; height: 46px;
-  border: none; border-radius: 50%;
+  top: 16px;
+  right: max(16px, calc(50vw - 240px + 16px));  /* 480px 컨테이너 우측에 붙임 */
+  display: flex;
+  gap: 8px;
+  z-index: 30;
+}
+.fab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  border: none;
+  border-radius: 14px;
   background: var(--card);
-  font-size: 22px;
+  padding: 8px 10px;
   cursor: pointer;
   box-shadow: var(--shadow);
-  z-index: 30;
   transition: transform 0.15s;
 }
-.cheer-fab:active { transform: scale(0.88); }
+.fab:active { transform: scale(0.9); }
+.fab-icon { font-size: 20px; line-height: 1; }
+.fab-label { font-size: 10px; font-weight: 700; color: var(--ink-soft); }
+.fab-lock .fab-label { color: #EC4899; }
 
 /* ---------- 캘린더 ---------- */
 .weekdays {
@@ -508,14 +519,18 @@ body {
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-ghost:active, .btn-primary:active { transform: scale(0.97); }
 
-/* ---------- 교사용: 오늘의 과제 정하기 ---------- */
-.task-edit {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px dashed var(--line);
+/* ---------- 교사용: 과제 수정 (비밀번호 잠금) ---------- */
+.pw-input { min-height: auto; height: 50px; text-align: center; letter-spacing: 3px; font-size: 18px; }
+.pw-error {
+  color: #F43F5E;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 8px;
 }
-.task-title { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
-.task-desc { font-size: 11px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5; }
+.task-panel .task-desc,
+.task-lock .dialog-desc { margin-bottom: 12px; }
+.task-desc { font-size: 12px; color: var(--ink-soft); line-height: 1.5; text-align: center; }
 .task-input {
   width: 100%;
   border: 2px solid var(--line);
@@ -531,14 +546,13 @@ body {
 }
 .task-input:focus { border-color: #EC4899; }
 .task-input::placeholder { color: #94A3B8; font-weight: 500; }
-.task-save { width: 100%; margin-top: 4px; }
 .task-saved {
   display: block;
   font-size: 11px;
   color: #22C55E;
   font-weight: 700;
-  height: 14px;
-  margin-top: 7px;
+  min-height: 14px;
+  margin: 2px 0 6px;
   text-align: center;
   opacity: 0;
   transition: opacity 0.3s;

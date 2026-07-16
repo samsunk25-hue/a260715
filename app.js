@@ -661,18 +661,75 @@ function openCheerModal() {
   $("cheerCount").textContent = "0";
   $("cheerModal").hidden = false;
   $("cheerInput").focus();
-
-  // 과제 입력칸에 지금 오늘 적용 중인 과제를 채워 둡니다
-  const cur = tasksForDate(todayKey());
-  for (let i = 0; i < 3; i++) $(`taskInput${i}`).value = cur[i] ?? "";
-  $("taskSaved").classList.remove("show");
-
   loadClassStats();
 }
 
 /* ===================================================================
-   교사용 — 오늘의 과제 정하기
-   =================================================================== */
+   교사용 — 과제 수정 (비밀번호 잠금)
+
+   ★ 이 비밀번호는 "학생이 장난으로 과제를 못 바꾸게" 막는 수준입니다 ★
+     서버가 없어서 검사가 브라우저 안에서 일어나므로, 코드를 열어볼 줄
+     아는 사람은 우회할 수 있습니다. 진짜 보안이 필요하면 로그인이 필요합니다.
+
+     그래도 원문을 코드에 두지 않고 SHA-256 해시만 둡니다. 저장소가
+     GitHub에 공개돼 있어서, 원문을 적으면 누구나 보게 되기 때문입니다.
+
+   비밀번호를 바꾸려면:
+     scripts/새-비밀번호-만들기.mjs 를 참고해 새 해시를 구한 뒤
+     아래 TEACHER_PW_HASH 값을 교체하세요.
+   ------------------------------------------------------------------- */
+const TEACHER_PW_HASH =
+  "b2a385f29915899dfc6d53aae530f98afe4666eac1e4b15cfa963cc9564c6395";  // 기본: dragon2026
+
+// 한 번 맞히면 이 탭이 열려 있는 동안은 다시 안 물어봅니다
+let teacherUnlocked = false;
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function openTaskModal() {
+  if (!isConfigured()) {
+    alert(
+      "아직 Firebase 설정을 하지 않았어요.\n\n" +
+      "firebase.js에 firebaseConfig를 넣어야 과제를 공유할 수 있어요."
+    );
+    return;
+  }
+  $("taskModal").hidden = false;
+
+  if (teacherUnlocked) {
+    showTaskPanel();
+  } else {
+    $("taskLock").hidden = false;
+    $("taskPanel").hidden = true;
+    $("taskPw").value = "";
+    $("pwError").hidden = true;
+    $("taskPw").focus();
+  }
+}
+
+async function tryUnlock() {
+  const entered = await sha256Hex($("taskPw").value);
+  if (entered !== TEACHER_PW_HASH) {
+    $("pwError").hidden = false;
+    $("taskPw").value = "";
+    $("taskPw").focus();
+    return;
+  }
+  teacherUnlocked = true;
+  showTaskPanel();
+}
+
+function showTaskPanel() {
+  $("taskLock").hidden = true;
+  $("taskPanel").hidden = false;
+  // 지금 오늘 적용 중인 과제를 채워 둠
+  const cur = tasksForDate(todayKey());
+  for (let i = 0; i < 3; i++) $(`taskInput${i}`).value = cur[i] ?? "";
+  $("taskSaved").classList.remove("show");
+}
 
 async function saveTeacherTasks() {
   const list = [0, 1, 2].map((i) => $(`taskInput${i}`).value.trim());
@@ -706,7 +763,7 @@ async function saveTeacherTasks() {
     alert("과제 저장에 실패했어요 😢\n인터넷 연결과 Firebase 설정을 확인해 주세요.");
   } finally {
     btn.disabled = false;
-    btn.textContent = "과제 저장하기 📌";
+    btn.textContent = "과제 저장 📌";
   }
 }
 
@@ -1047,6 +1104,13 @@ $("levelClose").onclick = () => { $("levelModal").hidden = true; };
 $("cheerBtn").onclick = openCheerModal;
 $("cheerCancel").onclick = () => { $("cheerModal").hidden = true; };
 $("cheerSubmit").onclick = submitCheer;
+
+// 과제 수정 (교사 전용)
+$("taskBtn").onclick = openTaskModal;
+$("taskUnlock").onclick = tryUnlock;
+$("taskPw").addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
+$("taskLockCancel").onclick = () => { $("taskModal").hidden = true; };
+$("taskCancel").onclick = () => { $("taskModal").hidden = true; };
 $("taskSave").onclick = saveTeacherTasks;
 
 $("cheerInput").addEventListener("input", (e) => {
@@ -1056,7 +1120,7 @@ $("cheerInput").addEventListener("input", (e) => {
 // 어두운 배경을 누르면 닫기
 // (레벨업 팝업은 일부러 뺐습니다. 진화는 이 앱에서 제일 중요한 순간이라
 //  실수로 배경을 눌러 지나치지 않도록 버튼으로만 닫게 합니다.)
-for (const id of ["missionModal", "cheerModal", "statsModal"]) {
+for (const id of ["missionModal", "cheerModal", "statsModal", "taskModal"]) {
   $(id).addEventListener("click", (e) => {
     if (e.target !== e.currentTarget) return;   // 내용물 클릭은 무시
     if (id === "missionModal") closeMission();
@@ -1068,6 +1132,7 @@ for (const id of ["missionModal", "cheerModal", "statsModal"]) {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (!$("levelModal").hidden) $("levelModal").hidden = true;
+  else if (!$("taskModal").hidden) $("taskModal").hidden = true;
   else if (!$("cheerModal").hidden) $("cheerModal").hidden = true;
   else if (!$("statsModal").hidden) $("statsModal").hidden = true;
   else if (!$("missionModal").hidden) closeMission();
