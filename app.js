@@ -10,9 +10,9 @@ import { isConfigured, addCheer, fetchCheersForMonth } from "./firebase.js";
 
 // 선생님 지정 과제 3개 (PRD 기능 ①)
 const TEACHER_TASKS = [
-  "수학 문제집 2쪽 풀기",
-  "영어 단어 20개 외우기",
-  "독서 30분 하기",
+  "독서",
+  "수학",
+  "영어",
 ];
 
 // 완료 칸 수에 따른 테마 색 (PRD 기능 ①)
