@@ -140,6 +140,17 @@
         <button id="cheerSubmit" class="btn-primary">메시지 띄우기 🚀</button>
       </div>
 
+      <!-- 오늘의 과제 정하기 (교사 전용) -->
+      <section class="task-edit" id="taskEdit">
+        <h3 class="task-title">📚 오늘의 과제 정하기</h3>
+        <p class="task-desc">여기서 정한 과제가 오늘 모든 학생의 미션에 나타나요.</p>
+        <input type="text" class="task-input" id="taskInput0" maxlength="30" placeholder="과제 1" />
+        <input type="text" class="task-input" id="taskInput1" maxlength="30" placeholder="과제 2" />
+        <input type="text" class="task-input" id="taskInput2" maxlength="30" placeholder="과제 3" />
+        <button id="taskSave" class="btn-primary task-save">과제 저장하기 📌</button>
+        <span class="task-saved" id="taskSaved"></span>
+      </section>
+
       <!-- 오늘의 우리 반 (익명 통계)
            학생 개인을 특정하지 않습니다. 이름도 별명도 저장하지 않아요. -->
       <section class="class-stats" id="classStats">
@@ -180,6 +191,12 @@
       <div class="chart-box"><canvas id="weekChart"></canvas></div>
       <p class="stats-msg">매일 미션을 완료하고 캐릭터를 진화시켜 보세요!</p>
       <p class="stats-reset">🗓️ 매월 1일에 알부터 다시 시작해요</p>
+
+      <!-- 나의 드래곤 도감 (지난 달 기록) -->
+      <section class="dex">
+        <h3 class="dex-title">🏆 나의 드래곤 도감</h3>
+        <div id="dexBody" class="dex-body"></div>
+      </section>
       <button id="statsClose" class="btn-close">닫기</button>
     </div>
   </div>

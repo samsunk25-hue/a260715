@@ -508,6 +508,43 @@ body {
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-ghost:active, .btn-primary:active { transform: scale(0.97); }
 
+/* ---------- 교사용: 오늘의 과제 정하기 ---------- */
+.task-edit {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+}
+.task-title { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+.task-desc { font-size: 11px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5; }
+.task-input {
+  width: 100%;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 13px;
+  margin-bottom: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.task-input:focus { border-color: #EC4899; }
+.task-input::placeholder { color: #94A3B8; font-weight: 500; }
+.task-save { width: 100%; margin-top: 4px; }
+.task-saved {
+  display: block;
+  font-size: 11px;
+  color: #22C55E;
+  font-weight: 700;
+  height: 14px;
+  margin-top: 7px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.task-saved.show { opacity: 1; }
+
 /* ---------- 교사용: 오늘의 우리 반 (익명 통계) ---------- */
 .class-stats {
   margin-top: 22px;
@@ -660,6 +697,36 @@ body {
   border-radius: 10px;
   padding: 7px;
 }
+
+/* ---------- 나의 드래곤 도감 ---------- */
+.dex {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+  text-align: left;
+}
+.dex-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+.dex-empty {
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 14px;
+  line-height: 1.6;
+}
+.dex-body { display: flex; flex-direction: column; gap: 8px; }
+.dex-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #F8FAFC;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+.dex-emoji { font-size: 30px; flex-shrink: 0; }
+.dex-info { flex: 1; min-width: 0; }
+.dex-month { font-size: 11px; color: var(--ink-soft); }
+.dex-name { font-size: 14px; font-weight: 800; }
+.dex-hearts { font-size: 12px; color: var(--ink-soft); flex-shrink: 0; }
 
 /* 화면이 아주 작은 기기 대응 */
 @media (max-width: 360px) {

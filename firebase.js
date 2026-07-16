@@ -66,6 +66,55 @@ export async function addCheer(dateKey, message) {
 }
 
 /* -------------------------------------------------------------------
+   ④-3 선생님 지정 과제 (교사가 직접 편집)
+
+   과제를 날짜별 문서로 저장합니다. "오늘부터의 과제"라는 뜻이라,
+   교사가 오늘 과제를 바꿔도 학생이 예전에 체크해둔 날의 과제 이름은
+   바뀌지 않습니다. (app.js가 "그 날짜 이하의 최신 과제"를 골라 씁니다.)
+
+   과제는 항상 정확히 3개입니다. 이 개수가 흔들리면 하트 계산(3+자율1=4칸)이
+   깨지므로, 앱에서 3개를 모두 채웠을 때만 저장합니다.
+   ------------------------------------------------------------------- */
+export async function saveTasks(dateKey, list) {
+  const conn = await connect();
+  if (!conn) throw new Error("NOT_CONFIGURED");
+
+  const { db, fs } = conn;
+  await fs.setDoc(fs.doc(db, "tasks", dateKey), {
+    date: dateKey,
+    list,                                // ["독서 30분", "수학...", "영어..."]
+    updatedAt: fs.serverTimestamp(),
+  });
+}
+
+/** 그 달의 과제 설정 — { "2026-07-01": ["...","...","..."], ... } */
+export async function fetchTasksForMonth(year, month /* 1~12 */) {
+  const conn = await connect();
+  if (!conn) return {};
+
+  const { db, fs } = conn;
+  const pad = (n) => String(n).padStart(2, "0");
+  const last = new Date(year, month, 0).getDate();
+  const from = `${year}-${pad(month)}-01`;
+  const to = `${year}-${pad(month)}-${pad(last)}`;
+
+  const snap = await fs.getDocs(
+    fs.query(
+      fs.collection(db, "tasks"),
+      fs.where("date", ">=", from),
+      fs.where("date", "<=", to)
+    )
+  );
+
+  const byDate = {};
+  snap.forEach((d) => {
+    const v = d.data();
+    if (Array.isArray(v.list) && v.list.length === 3) byDate[v.date] = v.list;
+  });
+  return byDate;
+}
+
+/* -------------------------------------------------------------------
    ④-2 익명 진도 보고 (교사용 통계)
 
    ★ 이름도 별명도 올리지 않습니다 ★

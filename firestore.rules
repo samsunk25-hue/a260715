@@ -38,6 +38,31 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // 선생님 지정 과제 — 교사가 🧒 화면에서 편집
+    //
+    //   문서 ID = 날짜, list = 과제 3개. 정확히 3개일 때만 허용합니다.
+    //   개수가 흔들리면 학생 화면의 하트 칸 수 계산(3+자율1=4)이 깨집니다.
+    //   과거 과제를 함부로 못 지우도록 delete는 막습니다.
+    match /tasks/{date} {
+      allow read: if true;
+
+      allow write: if request.resource.data.list is list
+                   && request.resource.data.list.size() == 3
+                   && request.resource.data.list[0] is string
+                   && request.resource.data.list[1] is string
+                   && request.resource.data.list[2] is string
+                   && request.resource.data.list[0].size() > 0
+                   && request.resource.data.list[0].size() < 40
+                   && request.resource.data.list[1].size() > 0
+                   && request.resource.data.list[1].size() < 40
+                   && request.resource.data.list[2].size() > 0
+                   && request.resource.data.list[2].size() < 40
+                   && request.resource.data.date is string
+                   && request.resource.data.keys().hasOnly(['date', 'list', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
     // 익명 진도 통계 — 교사가 반 분위기를 보기 위한 것
     //
     // ★ 여기에 개인정보가 들어가면 안 됩니다 ★

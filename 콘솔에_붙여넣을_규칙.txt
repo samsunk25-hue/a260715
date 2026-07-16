@@ -8,6 +8,23 @@ service cloud.firestore {
                     && request.resource.data.message.size() < 200;
       allow update, delete: if false;
     }
+    match /tasks/{date} {
+      allow read: if true;
+      allow write: if request.resource.data.list is list
+                   && request.resource.data.list.size() == 3
+                   && request.resource.data.list[0] is string
+                   && request.resource.data.list[1] is string
+                   && request.resource.data.list[2] is string
+                   && request.resource.data.list[0].size() > 0
+                   && request.resource.data.list[0].size() < 40
+                   && request.resource.data.list[1].size() > 0
+                   && request.resource.data.list[1].size() < 40
+                   && request.resource.data.list[2].size() > 0
+                   && request.resource.data.list[2].size() < 40
+                   && request.resource.data.date is string
+                   && request.resource.data.keys().hasOnly(['date', 'list', 'updatedAt']);
+      allow delete: if false;
+    }
     match /stats/{id} {
       allow read: if true;
       allow write: if request.resource.data.count is int

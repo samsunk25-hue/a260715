@@ -5,6 +5,7 @@
 import {
   isConfigured, addCheer, fetchCheersForMonth,
   reportProgress, fetchDayStats,
+  saveTasks, fetchTasksForMonth,
 } from "./firebase.js";
 import { clean } from "./badwords.js";
 
@@ -13,7 +14,9 @@ import { clean } from "./badwords.js";
    =================================================================== */
 
 // 선생님 지정 과제 3개 (PRD 기능 ①)
-const TEACHER_TASKS = [
+// 교사가 🧒 화면에서 바꾸기 전까지, 또는 Firebase 설정 전에 쓰이는 기본값입니다.
+// 실제 과제는 Firestore의 tasks 컬렉션에서 옵니다.
+const DEFAULT_TASKS = [
   "독서 30분",
   "수학 문제 10개",
   "영어 단어 10개",
@@ -171,6 +174,30 @@ let viewYear = new Date().getFullYear();
 let viewMonth = new Date().getMonth() + 1;   // 1~12
 let openKey = null;                          // 지금 열린 미션 모달의 날짜
 let cheers = {};                             // { "2026-07-15": ["메시지", ...] }
+let tasksByDate = {};                        // { "2026-07-15": ["과제1","과제2","과제3"] }
+
+/**
+ * 그 날짜에 적용되는 선생님 과제 3개
+ *
+ * ★ 과거를 건드리지 않는 규칙 ★
+ *   그 날짜와 같거나 이전에 설정된 과제 중 가장 최근 것을 씁니다.
+ *   그래서 교사가 오늘 과제를 바꿔도 지난 날들의 과제 이름은 그대로입니다.
+ *   설정이 하나도 없으면 기본값을 씁니다.
+ *
+ *   예) 1일에 "독서" 지정, 15일에 "논술"로 변경
+ *       -> 1~14일은 "독서", 15일부터 "논술" (과거가 소급 변경되지 않음)
+ *
+ *   ※ 이번 달에 불러온 설정 안에서만 거슬러 봅니다. 달을 넘어가는
+ *     경계에서는 기본값으로 떨어질 수 있는데, 교사가 매월 초 한 번
+ *     지정하면 되는 수준이라 그대로 둡니다.
+ */
+function tasksForDate(key) {
+  let best = null;
+  for (const d of Object.keys(tasksByDate)) {
+    if (d <= key && (best === null || d > best)) best = d;
+  }
+  return best ? tasksByDate[best] : DEFAULT_TASKS;
+}
 
 /* ===================================================================
    테마 색
@@ -360,7 +387,7 @@ function renderMissionList() {
   // 선생님 과제 3개는 매번 새로 그림 (자율학습 줄은 HTML에 있으니 건드리지 않음)
   list.querySelectorAll(".teacher-item").forEach((el) => el.remove());
 
-  TEACHER_TASKS.forEach((label, i) => {
+  tasksForDate(openKey).forEach((label, i) => {
     const item = document.createElement("label");
     item.className = "mission-item teacher-item";
     if (mission.tasks[i]) item.classList.add("done");
@@ -603,11 +630,21 @@ function renderCheers(key) {
 async function loadCheers() {
   if (!isConfigured()) return;
   try {
-    cheers = await fetchCheersForMonth(viewYear, viewMonth);
+    // 응원과 과제를 그 달치 한 번에 가져옵니다
+    const [c, t] = await Promise.all([
+      fetchCheersForMonth(viewYear, viewMonth),
+      fetchTasksForMonth(viewYear, viewMonth),
+    ]);
+    cheers = c;
+    // 다른 달로 넘어가도 과거 과제를 거슬러 볼 수 있게 누적해서 합칩니다
+    tasksByDate = { ...tasksByDate, ...t };
     renderCalendar();
-    if (openKey) renderCheers(openKey);
+    if (openKey) {
+      renderCheers(openKey);
+      renderMissionList();   // 과제가 늦게 도착했으면 다시 그림
+    }
   } catch (e) {
-    console.warn("응원을 불러오지 못했어요:", e);
+    console.warn("응원·과제를 불러오지 못했어요:", e);
   }
 }
 
@@ -624,7 +661,53 @@ function openCheerModal() {
   $("cheerCount").textContent = "0";
   $("cheerModal").hidden = false;
   $("cheerInput").focus();
+
+  // 과제 입력칸에 지금 오늘 적용 중인 과제를 채워 둡니다
+  const cur = tasksForDate(todayKey());
+  for (let i = 0; i < 3; i++) $(`taskInput${i}`).value = cur[i] ?? "";
+  $("taskSaved").classList.remove("show");
+
   loadClassStats();
+}
+
+/* ===================================================================
+   교사용 — 오늘의 과제 정하기
+   =================================================================== */
+
+async function saveTeacherTasks() {
+  const list = [0, 1, 2].map((i) => $(`taskInput${i}`).value.trim());
+
+  // 과제는 항상 3개여야 합니다. 하나라도 비면 하트 칸 수(3+자율1=4)가
+  // 흔들리므로 저장을 막습니다.
+  if (list.some((t) => !t)) {
+    alert("과제 3개를 모두 적어주세요.\n(빈 칸이 있으면 저장할 수 없어요)");
+    return;
+  }
+
+  const btn = $("taskSave");
+  btn.disabled = true;
+  btn.textContent = "저장 중...";
+
+  try {
+    const key = todayKey();          // 오늘부터 적용
+    await saveTasks(key, list);
+
+    // 서버 왕복을 기다리지 않고 화면에 먼저 반영
+    tasksByDate[key] = list;
+    if (openKey) renderMissionList();
+    renderCalendar();
+
+    const tag = $("taskSaved");
+    tag.textContent = "✓ 저장했어요! 오늘부터 적용됩니다";
+    tag.classList.add("show");
+    setTimeout(() => tag.classList.remove("show"), 2600);
+  } catch (e) {
+    console.error(e);
+    alert("과제 저장에 실패했어요 😢\n인터넷 연결과 Firebase 설정을 확인해 주세요.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "과제 저장하기 📌";
+  }
 }
 
 /* ===================================================================
@@ -758,6 +841,52 @@ async function submitCheer() {
 }
 
 /* ===================================================================
+   나의 드래곤 도감 — 지난 달마다 어떤 드래곤까지 키웠는지
+
+   월간 리셋으로 드래곤이 매월 알로 돌아가는데, 지난달의 성취가 아무 데도
+   안 남으면 허무합니다. 데이터는 이미 다 있으니(리셋은 지우지 않고 세는
+   범위만 좁히는 방식) 지난 달들을 계산해서 보여주기만 하면 됩니다.
+   =================================================================== */
+
+const MONTH_NAMES = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+function renderDex() {
+  const box = $("dexBody");
+
+  // 미션 기록이 있는 모든 달을 모음
+  const months = new Set();
+  for (const k of Object.keys(store.missions)) {
+    if (countDone(k) > 0) months.add(k.slice(0, 7));   // "2026-07"
+  }
+
+  const now = thisMonth();
+  // 이번 달은 위 큰 캐릭터로 이미 보여주므로 도감에는 지난 달만
+  const past = [...months].filter((m) => m < now).sort().reverse();
+
+  if (!past.length) {
+    box.innerHTML =
+      `<div class="dex-empty">아직 지난 기록이 없어요.<br>` +
+      `이번 달 드래곤을 키워보세요! 🥚</div>`;
+    return;
+  }
+
+  box.innerHTML = past.map((mk) => {
+    const hearts = monthHearts(mk);
+    const dg = dragonOf(hearts);
+    const [y, m] = mk.split("-").map(Number);
+    return `
+      <div class="dex-row">
+        <span class="dex-emoji">${dg.emoji}</span>
+        <div class="dex-info">
+          <div class="dex-month">${y}년 ${MONTH_NAMES[m - 1]}</div>
+          <div class="dex-name">Lv.${dg.level} ${dg.name}</div>
+        </div>
+        <span class="dex-hearts">❤️ ${hearts}</span>
+      </div>`;
+  }).join("");
+}
+
+/* ===================================================================
    화면 4 — 7일 성장 그래프
    =================================================================== */
 
@@ -773,6 +902,8 @@ async function openStats() {
   $("statsName").textContent = dragon.name;
   $("statsHearts").textContent = hearts;
   $("statsModal").hidden = false;
+
+  renderDex();
 
   // 최근 7일 (오늘 포함)
   const labels = [];
@@ -916,6 +1047,7 @@ $("levelClose").onclick = () => { $("levelModal").hidden = true; };
 $("cheerBtn").onclick = openCheerModal;
 $("cheerCancel").onclick = () => { $("cheerModal").hidden = true; };
 $("cheerSubmit").onclick = submitCheer;
+$("taskSave").onclick = saveTeacherTasks;
 
 $("cheerInput").addEventListener("input", (e) => {
   $("cheerCount").textContent = e.target.value.length;
