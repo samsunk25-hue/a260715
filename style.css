@@ -414,6 +414,7 @@ body {
   transition: opacity 0.3s;
 }
 .diary-saved.show { opacity: 1; }
+.diary-saved.warn { color: #F43F5E; font-weight: 700; }
 
 /* ---------- 버튼 ---------- */
 .btn-close {

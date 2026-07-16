@@ -3,6 +3,7 @@
    =================================================================== */
 
 import { isConfigured, addCheer, fetchCheersForMonth } from "./firebase.js";
+import { clean } from "./badwords.js";
 
 /* ===================================================================
    설정 — 여기만 고치면 됩니다
@@ -267,6 +268,7 @@ function closeMission() {
   if (openKey && !$("diaryArea").hidden) {
     clearTimeout(diaryTimer);
     saveDiary(openKey, false);
+    cleanDiary(openKey);   // blur를 놓치고 닫는 경우까지 확실히 처리
   }
   $("missionModal").hidden = true;
   openKey = null;
@@ -469,8 +471,22 @@ function openCheerModal() {
 }
 
 async function submitCheer() {
-  const msg = $("cheerInput").value.trim();
-  if (!msg) return;
+  const raw = $("cheerInput").value.trim();
+  if (!raw) return;
+
+  // 비속어 걸러내기
+  // 모든 학생에게 공개되는 글이라, 몰래 고쳐서 보내지 않고
+  // 무엇이 가려졌는지 보여준 뒤 확인을 받습니다.
+  const { text: msg, found } = clean(raw);
+  if (found.length) {
+    const ok = confirm(
+      `부적절한 표현이 있어 가렸어요.\n\n` +
+      `이렇게 보낼까요?\n\n"${msg}"\n\n` +
+      `[취소]를 누르면 다시 고칠 수 있어요.`
+    );
+    if (!ok) return;
+    $("cheerInput").value = msg;
+  }
 
   const btn = $("cheerSubmit");
   btn.disabled = true;
@@ -619,6 +635,33 @@ function saveDiary(key, showTag) {
   tag.classList.add("show");
   setTimeout(() => tag.classList.remove("show"), 1600);
 }
+
+/**
+ * 일기 비속어 처리 — 타이핑 중이 아니라 입력창을 벗어날 때만 합니다.
+ *
+ * 왜 타이핑 중에 하면 안 되나:
+ *   "시발점"을 쓰려면 "시"→"시발"→"시발점" 순서를 거칩니다.
+ *   실시간으로 가리면 "시발"이 되는 순간 "●●"로 바뀌어서
+ *   "시발점"을 아예 쓸 수 없게 됩니다.
+ *   글을 다 쓴 뒤에 검사하면 화이트리스트가 "시발점"을 알아봅니다.
+ */
+function cleanDiary(key) {
+  if (!key) return;
+  const box = $("diaryText");
+  const { text, found } = clean(box.value);
+  if (!found.length) return;
+
+  box.value = text;
+  store.diaries[key] = text;
+  save();
+
+  const tag = $("diarySaved");
+  tag.textContent = "부적절한 표현을 가렸어요";
+  tag.classList.add("show", "warn");
+  setTimeout(() => tag.classList.remove("show", "warn"), 2600);
+}
+
+$("diaryText").addEventListener("blur", () => cleanDiary(openKey));
 
 /* ===================================================================
    이벤트 연결
