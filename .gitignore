@@ -7,6 +7,9 @@ desktop.ini
 .vscode/
 .idea/
 
+# Claude Code 로컬 설정 (이 PC에만 해당)
+.claude/settings.local.json
+
 # 백업 폴더 (개발계획.md의 Day 1 백업 등)
 백업_*/
 backup_*/
